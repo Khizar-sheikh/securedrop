@@ -299,10 +299,10 @@ Create database schema incrementally.
 - [x] Create login endpoint. (`POST /api/v1/auth/login`, timing-equalized, 7 tests)
 - [x] Create authenticated session. (15m JWT access + 30d rotating Redis refresh session, stored hashed)
 - [x] Create logout endpoint. (`POST /api/v1/auth/logout`, idempotent, revokes refresh token)
-- [ ] Add authentication guard.
-- [ ] Add current-user endpoint.
-- [ ] Add rate limiting to authentication.
-- [ ] Add failed-login handling.
+- [x] Add authentication guard. (`AccessTokenGuard`: JWT verify + live account check, 8 tests)
+- [x] Add current-user endpoint. (`GET /api/v1/auth/me`)
+- [x] Add rate limiting to authentication. (global throttler + per-email Redis lockout, 2 suites)
+- [x] Add failed-login handling. (10 failures/15min → 429 `RATE_LIMITED`, counter cleared on success)
 - [x] Add account status validation. (DISABLED → 403 `ACCOUNT_DISABLED` after password check)
 - [x] Add audit events for authentication. (`USER_REGISTERED`, `LOGIN_FAILED`, `USER_LOGIN`, `USER_LOGOUT`)
 

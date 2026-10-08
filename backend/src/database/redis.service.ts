@@ -66,6 +66,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.expire(key, ttlSeconds);
   }
 
+  /** Atomic counter with an auto-expiring window (window starts at the first hit). */
+  async incr(key: string, ttlSeconds: number): Promise<number> {
+    const value = await this.client.incr(key);
+    if (value === 1) {
+      await this.client.expire(key, ttlSeconds);
+    }
+    return value;
+  }
+
   async sadd(key: string, member: string): Promise<void> {
     await this.client.sadd(key, member);
   }

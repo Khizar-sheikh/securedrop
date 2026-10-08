@@ -4,6 +4,7 @@ import { APP_CONFIG } from '../../config/tokens';
 import { AppConfig } from '../../config/configuration';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthRateLimiterService } from './auth-rate-limiter.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, AuthRateLimiterService],
 })
 export class AuthModule {}

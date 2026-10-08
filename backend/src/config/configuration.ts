@@ -78,6 +78,23 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CORS_ORIGINS?: string;
+
+  // --- Rate limiting / brute-force protection ---
+  @IsOptional()
+  @IsNumberString()
+  RATE_LIMIT_MAX?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  RATE_LIMIT_TTL_MS?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  AUTH_MAX_FAILED_ATTEMPTS?: string;
+
+  @IsOptional()
+  @IsString()
+  AUTH_FAIL_WINDOW?: string;
 }
 
 export interface AppConfig {
@@ -104,6 +121,14 @@ export interface AppConfig {
   };
   upload: {
     maxBytes: number;
+  };
+  rateLimit: {
+    max: number;
+    ttlMs: number;
+  };
+  auth: {
+    maxFailedAttempts: number;
+    failWindowSeconds: number;
   };
   logLevel: 'error' | 'warn' | 'info' | 'debug';
   corsOrigins: string[];
@@ -133,6 +158,14 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
   },
   upload: {
     maxBytes: toInt(env.UPLOAD_MAX_BYTES, 100 * 1024 * 1024),
+  },
+  rateLimit: {
+    max: toInt(env.RATE_LIMIT_MAX, 600),
+    ttlMs: toInt(env.RATE_LIMIT_TTL_MS, 60_000),
+  },
+  auth: {
+    maxFailedAttempts: toInt(env.AUTH_MAX_FAILED_ATTEMPTS, 10),
+    failWindowSeconds: parseTtlToSeconds(env.AUTH_FAIL_WINDOW ?? '15m'),
   },
   logLevel: (env.LOG_LEVEL ?? 'info') as AppConfig['logLevel'],
   corsOrigins: (env.CORS_ORIGINS ?? '').split(',').filter(Boolean),

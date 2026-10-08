@@ -1,6 +1,7 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
+import { AccessTokenGuard } from './guards/access-token.guard';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -10,6 +11,12 @@ import { getRequestContext } from '../../common/request-context';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Get('me')
+  @UseGuards(AccessTokenGuard)
+  me(@Req() req: Request) {
+    return req.user;
+  }
 
   @Post('register')
   @HttpCode(201)

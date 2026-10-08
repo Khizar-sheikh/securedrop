@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SessionService } from '../sessions/session.service';
+import { AuthRateLimiterService } from './auth-rate-limiter.service';
 import { RequestContext } from '../../common/request-context';
 import { fail } from '../../common/api-response';
 import { ERROR_CODES } from '../../common/error-codes';
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly sessions: SessionService,
+    private readonly rateLimiter: AuthRateLimiterService,
     private readonly jwt: JwtService,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
@@ -75,6 +77,18 @@ export class AuthService {
 
   async login(dto: LoginDto, context: RequestContext): Promise<SessionResponse> {
     const email = dto.email.trim().toLowerCase();
+
+    // Checked before any hashing work so a locked account costs no CPU.
+    if (await this.rateLimiter.isLocked(email)) {
+      await this.audit.record({
+        type: 'LOGIN_RATE_LIMITED',
+        ip: context.ip,
+        userAgent: context.userAgent,
+        metadata: { reason: 'too_many_failures' },
+      });
+      throw new HttpException(fail(ERROR_CODES.RATE_LIMITED), 429);
+    }
+
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     const passwordOk = user
@@ -82,6 +96,7 @@ export class AuthService {
       : await dummyVerify(dto.password);
 
     if (!user || !passwordOk) {
+      await this.rateLimiter.recordFailure(email);
       await this.audit.record({
         type: 'LOGIN_FAILED',
         ip: context.ip,
@@ -90,6 +105,8 @@ export class AuthService {
       });
       throw new HttpException(fail(ERROR_CODES.INVALID_CREDENTIALS), 401);
     }
+
+    await this.rateLimiter.clearFailures(email);
 
     if (user.status !== 'ACTIVE') {
       await this.audit.record({
