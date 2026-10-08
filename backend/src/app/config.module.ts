@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { buildConfig, AppConfig } from '../config/configuration';
+import { AppConfig, buildConfig } from '../config/configuration';
 import { validateEnvironment } from '../config/env.validation';
-
-export const APP_CONFIG = Symbol('APP_CONFIG');
+import { APP_CONFIG } from '../config/tokens';
 
 @Module({
   imports: [

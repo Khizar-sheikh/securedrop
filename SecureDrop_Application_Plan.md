@@ -216,16 +216,16 @@ When a task is completed:
 
 # 7. PHASE 1 — Local Infrastructure
 
-- [ ] Create Docker configuration.
-- [ ] Start PostgreSQL.
-- [ ] Start Redis.
-- [ ] Start local object storage.
-- [ ] Add health checks.
-- [ ] Connect backend to PostgreSQL.
-- [ ] Connect backend to Redis.
-- [ ] Connect backend to object storage.
-- [ ] Verify all services independently.
-- [ ] Add local development documentation.
+- [x] Create Docker configuration. (`docker-compose.yml`, loopback-only ports 5433/6380/9000/9001)
+- [x] Start PostgreSQL. (postgres:17-alpine, healthy)
+- [x] Start Redis. (redis:7-alpine + password, healthy)
+- [x] Start local object storage. (MinIO + private bucket `securedrop-private`)
+- [x] Add health checks. (compose healthchecks on all services)
+- [x] Connect backend to PostgreSQL. (Prisma 6, `SELECT 1` via health check)
+- [x] Connect backend to Redis. (ioredis + password, health check)
+- [x] Connect backend to object storage. (S3 client, bucket ensure + HeadBucket)
+- [x] Verify all services independently. (psql, redis-cli, MinIO, degraded 503 test)
+- [x] Add local development documentation. (`docs/local-development.md`)
 
 ---
 
