@@ -338,24 +338,24 @@ Create database schema incrementally.
 
 ## App
 
-- [ ] Create file picker.
-- [ ] Select file.
-- [ ] Display filename.
-- [ ] Display size.
-- [ ] Display upload progress.
-- [ ] Handle cancellation.
-- [ ] Handle failed uploads.
-- [ ] Retry failed uploads.
-- [ ] Show successful upload.
-- [ ] Show user's files.
+- [x] Create file picker. (`expo-document-picker`)
+- [x] Select file. (single document, cancelled pick ignored)
+- [x] Display filename. (pending card + list rows)
+- [x] Display size. (`formatBytes`)
+- [x] Display upload progress. (XHR `upload.onprogress` → `ProgressBar`)
+- [x] Handle cancellation. (abort → `UploadCancelledError`, state reset)
+- [x] Handle failed uploads. (inline error + status mapping from API envelope)
+- [x] Retry failed uploads. (re-submits the same picked asset)
+- [x] Show successful upload. (success card, list refreshed)
+- [x] Show user's files. (flat list from `GET /files`)
 
 ---
 
 # 11. PHASE 5 — File Management
 
-- [x] List user's files. (backend `GET /api/v1/files`, ownership-scoped; app UI follows)
-- [x] Add pagination. (`page`/`pageSize` → `total`/`hasMore`, 7 tests)
-- [ ] Add pull-to-refresh.
+- [x] List user's files. (backend `GET /api/v1/files` + app flat list)
+- [x] Add pagination. (`page`/`pageSize` → `total`/`hasMore`; app infinite scroll, 7 tests)
+- [x] Add pull-to-refresh. (`RefreshControl` on the file list)
 - [ ] Add file search later if needed.
 - [ ] Add file details. (backend `GET /api/v1/files/:id` ready; app view pending)
 - [ ] Add delete file. (backend `DELETE /api/v1/files/:id` ready; app action pending)
