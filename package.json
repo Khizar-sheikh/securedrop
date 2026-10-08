@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "react": "19.2.3"
+  },
+  "dependencies": {
+    "react-native-markdown-display": "^7.0.2"
   }
 }
