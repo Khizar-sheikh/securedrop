@@ -235,57 +235,57 @@ Create database schema incrementally.
 
 ## User
 
-- [ ] Create User model.
-- [ ] Add unique email.
-- [ ] Add password hash.
-- [ ] Add created timestamp.
-- [ ] Add updated timestamp.
-- [ ] Add account status.
+- [x] Create User model. (migration `add_user`)
+- [x] Add unique email.
+- [x] Add password hash.
+- [x] Add created timestamp.
+- [x] Add updated timestamp.
+- [x] Add account status. (ACTIVE / DISABLED)
 
 ## File
 
-- [ ] Create File model.
-- [ ] Add owner ID.
-- [ ] Add original filename.
-- [ ] Add MIME type.
-- [ ] Add file size.
-- [ ] Add storage key.
-- [ ] Add checksum/hash.
-- [ ] Add created timestamp.
-- [ ] Add deleted timestamp.
+- [x] Create File model. (migration `add_file`)
+- [x] Add owner ID. (FK, cascade delete)
+- [x] Add original filename.
+- [x] Add MIME type.
+- [x] Add file size.
+- [x] Add storage key. (server-generated, unique)
+- [x] Add checksum/hash. (sha256)
+- [x] Add created timestamp.
+- [x] Add deleted timestamp. (soft delete)
 
 ## Share
 
-- [ ] Create Share model.
-- [ ] Add file ID.
-- [ ] Add owner ID.
-- [ ] Add secure token identifier.
-- [ ] Add expiration.
-- [ ] Add download permission.
-- [ ] Add maximum access count.
-- [ ] Add current access count.
-- [ ] Add password protection option.
-- [ ] Add revoked status.
-- [ ] Add created timestamp.
+- [x] Create Share model. (migration `add_share_recipient_session_audit`)
+- [x] Add file ID.
+- [x] Add owner ID.
+- [x] Add secure token identifier. (`tokenHash` = sha256 of link token, unique)
+- [x] Add expiration. (`expiresAt`)
+- [x] Add download permission. (`allowDownload`)
+- [x] Add maximum access count. (`maxAccesses`, null = unlimited)
+- [x] Add current access count. (`accessCount`)
+- [x] Add password protection option. (`passwordHash`)
+- [x] Add revoked status. (`revokedAt` + `consumedAt` for one-time)
+- [x] Add created timestamp.
 
 ## Recipient Session
 
-- [ ] Create recipient session model.
-- [ ] Store share ID.
-- [ ] Store session identifier.
-- [ ] Store creation time.
-- [ ] Store last access time.
-- [ ] Store expiration time.
-- [ ] Store security metadata required by policy.
+- [x] Create recipient session model.
+- [x] Store share ID.
+- [x] Store session identifier. (`tokenHash` = sha256 of session secret)
+- [x] Store creation time.
+- [x] Store last access time.
+- [x] Store expiration time.
+- [x] Store security metadata required by policy. (ip + userAgent as signals)
 
 ## Audit Event
 
-- [ ] Create audit event model.
-- [ ] Add event type.
-- [ ] Add user/share/file reference where appropriate.
-- [ ] Add timestamp.
-- [ ] Add request metadata needed for security investigation.
-- [ ] Define a retention strategy.
+- [x] Create audit event model.
+- [x] Add event type. (`AuditEventType` enum)
+- [x] Add user/share/file reference where appropriate.
+- [x] Add timestamp.
+- [x] Add request metadata needed for security investigation. (ip, userAgent, jsonb metadata)
+- [x] Define a retention strategy. (cascade on delete + 180-day prune, documented in schema)
 
 ---
 

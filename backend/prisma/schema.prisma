@@ -9,3 +9,136 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique // stored lowercase
+  passwordHash String
+  status       AccountStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  files       File[]
+  shares      Share[]
+  auditEvents AuditEvent[]
+}
+
+/// Uploaded file metadata. Content lives in private object storage under a
+/// server-generated key; the original filename is only ever metadata.
+model File {
+  id               String    @id @default(uuid())
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String    @unique // server generated, never derived from user input
+  checksum         String // sha256 hex of the content
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime? // soft delete
+
+  shares         Share[]
+  auditEvents    AuditEvent[]
+
+  @@index([ownerId, createdAt])
+}
+
+/// A controlled grant of access to one file.
+/// Only the SHA-256 of the link token is stored, so a database leak cannot
+/// reveal any working link.
+model Share {
+  id      String @id @default(uuid())
+  fileId  String
+  file    File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique // sha256(link token); raw token is never stored
+
+  expiresAt      DateTime?
+  allowDownload  Boolean  @default(true)
+  maxAccesses    Int? // null = unlimited
+  accessCount    Int      @default(0)
+  passwordHash   String? // optional share password (salted hash)
+  oneTime        Boolean  @default(false)
+  strict         Boolean  @default(false) // stricter recipient session binding
+  revokedAt      DateTime?
+  consumedAt     DateTime? // set when a one-time share is used
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  recipientSessions RecipientSession[]
+  auditEvents       AuditEvent[]
+
+  @@index([ownerId, createdAt])
+  @@index([fileId])
+}
+
+/// Server-side session for a recipient that opened a share.
+/// The client holds the raw session secret; only its hash is stored.
+/// IP/user-agent are recorded as risk signals, never as identity.
+model RecipientSession {
+  id      String @id @default(uuid())
+  shareId String
+  share   Share  @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique // sha256(session secret)
+
+  createdAt    DateTime @default(now())
+  lastAccessAt DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  ip        String?
+  userAgent String?
+
+  auditEvents AuditEvent[]
+
+  @@index([shareId])
+}
+
+enum AuditEventType {
+  USER_REGISTERED
+  USER_LOGIN
+  LOGIN_FAILED
+  USER_LOGOUT
+  FILE_UPLOADED
+  FILE_DELETED
+  SHARE_CREATED
+  SHARE_OPENED
+  SHARE_DOWNLOADED
+  SHARE_REVOKED
+  ACCESS_DENIED
+  RECIPIENT_SESSION_CREATED
+  SESSION_CHANGED
+}
+
+/// Append-only security trail.
+/// Retention: rows cascade when their share/file/user is deleted (privacy
+/// first); otherwise keep for 180 days and prune with a scheduled job.
+model AuditEvent {
+  id    String          @id @default(uuid())
+  type  AuditEventType
+  actorUserId           String?
+  shareId               String?
+  fileId                String?
+  recipientSessionId    String?
+  ip                    String?
+  userAgent             String?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+
+  actor   User?             @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  share   Share?            @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  file    File?             @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  session RecipientSession? @relation(fields: [recipientSessionId], references: [id], onDelete: Cascade)
+
+  @@index([type, createdAt])
+  @@index([shareId, createdAt])
+  @@index([actorUserId, createdAt])
+}
