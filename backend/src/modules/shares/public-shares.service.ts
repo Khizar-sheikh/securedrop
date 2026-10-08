@@ -32,6 +32,12 @@ export interface OpenedShare {
   session: { secret: string; expiresAt: Date };
 }
 
+export interface ShareInspection {
+  file: { filename: string; mimeType: string; sizeBytes: number; checksum: string };
+  share: OpenedShare['share'];
+  requiresPassword: boolean;
+}
+
 export interface DownloadResult {
   filename: string;
   sizeBytes: number;
@@ -51,7 +57,11 @@ export class PublicSharesService {
     this.recipientTtlSeconds = config.tokens.recipientTtlSeconds;
   }
 
-  async open(dto: OpenShareDto, context: RequestContext): Promise<OpenedShare> {
+  async open(dto: OpenShareDto, context: RequestContext): Promise<OpenedShare | ShareInspection> {
+    if (dto.inspect) {
+      return this.inspect(dto.token);
+    }
+
     if (!TOKEN_PATTERN.test(dto.token)) {
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
@@ -131,6 +141,40 @@ export class PublicSharesService {
       file: this.authorizedFile(share.file),
       share: this.shareRules(refreshed),
       session: { secret, expiresAt: sessionExpiry },
+    };
+  }
+
+  /**
+   * Metadata-only preview used by the recipient screen: same validation as a
+   * real open, but no session is created and no access is consumed.
+   */
+  async inspect(token: string): Promise<ShareInspection> {
+    if (!TOKEN_PATTERN.test(token)) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
+    }
+
+    const share = await this.prisma.share.findUnique({
+      where: { tokenHash: hashToken(token) },
+      include: { file: true },
+    });
+
+    if (!share || share.file.deletedAt !== null) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
+    }
+    if (share.revokedAt) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_REVOKED), 410);
+    }
+    if (share.consumedAt) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_CONSUMED), 410);
+    }
+    if (share.expiresAt && share.expiresAt.getTime() <= Date.now()) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_EXPIRED), 410);
+    }
+
+    return {
+      file: this.authorizedFile(share.file),
+      share: this.shareRules(share),
+      requiresPassword: share.passwordHash !== null,
     };
   }
 

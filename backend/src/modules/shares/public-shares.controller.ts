@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Logger, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
-import { PublicSharesService, OpenedShare, DownloadResult } from './public-shares.service';
+import { PublicSharesService, OpenedShare, ShareInspection, DownloadResult } from './public-shares.service';
 import { OpenShareDto } from './dto/open-share.dto';
 import { DownloadShareDto } from './dto/download-share.dto';
 import { getRequestContext } from '../../common/request-context';
@@ -19,7 +19,7 @@ export class PublicSharesController {
 
   @Post('open')
   @HttpCode(200)
-  open(@Body() dto: OpenShareDto, @Req() req: Request): Promise<OpenedShare> {
+  open(@Body() dto: OpenShareDto, @Req() req: Request): Promise<OpenedShare | ShareInspection> {
     return this.publicShares.open(dto, getRequestContext(req));
   }
 

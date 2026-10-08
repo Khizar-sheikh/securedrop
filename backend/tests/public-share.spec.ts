@@ -190,6 +190,49 @@ describe('public share access', () => {
     expect(stored!.accessCount).toBe(3);
   });
 
+  it('inspects a share without consuming an access', async () => {
+    const account = await createAccount();
+    const file = await uploadFile(account);
+    const share = await createShare(account, file.id, {
+      oneTime: true,
+      maxAccesses: 1,
+      password: 'super-secret-1',
+    });
+
+    const res = await open({ token: share.token, inspect: true });
+
+    expect(res.status).toBe(HttpStatus.OK);
+    expect(res.body.data.requiresPassword).toBe(true);
+    expect(res.body.data.session).toBeUndefined();
+    expect(res.body.data.file.filename).toBe('report.txt');
+    expect(res.body.data.share.accessCount).toBe(0);
+    expect(res.body.data.share.oneTime).toBe(true);
+
+    const stored = await prisma.share.findUnique({ where: { id: share.id } });
+    expect(stored!.accessCount).toBe(0);
+    expect(stored!.consumedAt).toBeNull();
+    expect(
+      await prisma.recipientSession.count({ where: { shareId: share.id } }),
+    ).toBe(0);
+  });
+
+  it('rejects inspection of consumed, revoked or expired shares', async () => {
+    const account = await createAccount();
+    const file = await uploadFile(account);
+
+    const consumed = await createShare(account, file.id, { oneTime: true, maxAccesses: 1 });
+    await open({ token: consumed.token });
+    const consumedRes = await open({ token: consumed.token, inspect: true });
+    expect(consumedRes.status).toBe(HttpStatus.GONE);
+    expect(consumedRes.body.error.code).toBe(ERROR_CODES.SHARE_CONSUMED);
+
+    const revoked = await createShare(account, file.id);
+    await prisma.share.update({ where: { id: revoked.id }, data: { revokedAt: new Date() } });
+    const revokedRes = await open({ token: revoked.token, inspect: true });
+    expect(revokedRes.status).toBe(HttpStatus.GONE);
+    expect(revokedRes.body.error.code).toBe(ERROR_CODES.SHARE_REVOKED);
+  });
+
   it('requires then verifies the share password', async () => {
     const account = await createAccount();
     const file = await uploadFile(account);

@@ -536,7 +536,7 @@ Tasks:
 - [x] Check access policy. (strict environment binding + `allowDownload`/expiration/limit on download)
 - [x] Allow access if valid. (no extra access is consumed on reopen)
 - [x] Reject unauthorized sessions. (`RECIPIENT_SESSION_INVALID` / `RECIPIENT_SESSION_EXPIRED` 401)
-- [ ] Provide a clear re-authentication path when appropriate. (recipient screen, pending)
+- [x] Provide a clear re-authentication path when appropriate. (recipient screen clears the stale stored session and re-opens the link; password re-prompted when required)
 
 ---
 

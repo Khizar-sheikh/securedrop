@@ -32,6 +32,36 @@ export interface CreateShareInput {
 
 export type ShareStatus = 'active' | 'revoked' | 'expired' | 'consumed' | 'unavailable';
 
+export interface ShareFile {
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  checksum: string;
+}
+
+export interface ShareRules {
+  expiresAt: string | null;
+  allowDownload: boolean;
+  maxAccesses: number | null;
+  accessCount: number;
+  strict: boolean;
+  oneTime: boolean;
+  hasPassword: boolean;
+}
+
+/** Metadata-only preview returned before any access is consumed. */
+export interface ShareInspection {
+  file: ShareFile;
+  share: ShareRules;
+  requiresPassword: boolean;
+}
+
+export interface OpenedShare {
+  file: ShareFile;
+  share: ShareRules;
+  session: { secret: string; expiresAt: string };
+}
+
 export const shareStatus = (share: PublicShare, fileDeleted = false): ShareStatus => {
   if (share.revokedAt) return 'revoked';
   if (share.consumedAt) return 'consumed';

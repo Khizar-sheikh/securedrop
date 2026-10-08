@@ -20,3 +20,20 @@ export const formatDate = (value: string | Date): string => {
   if (Number.isNaN(date.getTime())) return '—';
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
+
+/** Human-readable remaining time for a share expiry (recipient-facing). */
+export const formatRelativeExpiry = (expiresAt: string | null): string => {
+  if (!expiresAt) return 'No expiry';
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return 'No expiry';
+  if (ms <= 0) return 'Expired';
+
+  const minutes = Math.ceil(ms / 60_000);
+  if (minutes < 60) return `Expires in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 48) return `Expires in ${hours} hour${hours === 1 ? '' : 's'}`;
+
+  const days = Math.ceil(hours / 24);
+  return `Expires in ${days} day${days === 1 ? '' : 's'}`;
+};

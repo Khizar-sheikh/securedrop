@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '../features/auth/AuthProvider';
 import { ThemeProvider, useTheme } from '../theme';
 
 /** Routes that do not require a signed-in account. */
-const PUBLIC_ROOTS = new Set(['', 'login', 'register']);
+const PUBLIC_ROOTS = new Set(['', 'login', 'register', 's']);
 
 const Navigation = () => {
   const theme = useTheme();

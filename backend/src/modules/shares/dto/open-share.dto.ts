@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class OpenShareDto {
   @IsString()
@@ -14,4 +14,9 @@ export class OpenShareDto {
   @IsString()
   @MaxLength(500)
   sessionSecret?: string;
+
+  /** Metadata-only read: never creates a session or consumes an access. */
+  @IsOptional()
+  @IsBoolean()
+  inspect?: boolean;
 }
