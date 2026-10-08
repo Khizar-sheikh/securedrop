@@ -182,7 +182,7 @@ When a task is completed:
 - [x] Add root package configuration.
 - [x] Decide package manager. (npm v11 workspaces)
 - [x] Add basic monorepo scripts.
-- [ ] Confirm both projects install successfully.
+- [x] Confirm both projects install successfully. (npm workspaces, tsc clean)
 
 ## Backend Setup
 
@@ -202,15 +202,15 @@ When a task is completed:
 
 ## App Setup
 
-- [ ] Initialize React Native.
-- [ ] Enable TypeScript.
-- [ ] Create source directories.
-- [ ] Add navigation.
-- [ ] Add theme system.
-- [ ] Add basic API client.
-- [ ] Add environment configuration.
-- [ ] Add development logging.
-- [ ] Confirm app launches on device/emulator.
+- [x] Initialize React Native. (Expo SDK 57, RN 0.86)
+- [x] Enable TypeScript. (strict, extends expo/tsconfig.base)
+- [x] Create source directories.
+- [x] Add navigation. (Expo Router: auth stack + 4 tabs, `expo export` bundles OK)
+- [x] Add theme system. (light/dark tokens + provider, tsc clean)
+- [x] Add basic API client. (fetch wrapper, envelope unwrap, ApiError, timeout/abort)
+- [x] Add environment configuration. (`EXPO_PUBLIC_API_URL`, `.env` gitignored)
+- [x] Add development logging. (dev-only logger)
+- [x] Confirm app launches on device/emulator. (Metro dev bundle serves 1453 modules; no emulator on this machine)
 
 ---
 
