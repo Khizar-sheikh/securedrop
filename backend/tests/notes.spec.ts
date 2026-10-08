@@ -234,6 +234,114 @@ describe('notes', () => {
     expect(keptNote?.deletedAt).not.toBeNull();
   });
 
+  const uploadFile = async (account: Account, name = 'attach.txt'): Promise<{ id: string }> => {
+    const res = await request(app.getHttpServer())
+      .post(apiUrl('files'))
+      .set('Authorization', `Bearer ${account.token}`)
+      .attach('file', Buffer.from('attachment content'), { filename: name, contentType: 'text/plain' })
+      .expect(HttpStatus.CREATED);
+    return res.body.data;
+  };
+
+  it('attaches and detaches files owned by the same user', async () => {
+    const account = await createAccount('attach');
+    const file = await uploadFile(account);
+    const created = await request(app.getHttpServer())
+      .post(apiUrl('notes'))
+      .set('Authorization', `Bearer ${account.token}`)
+      .send({ title: 'With files' })
+      .expect(HttpStatus.CREATED);
+    const noteId = created.body.data.id;
+
+    const attached = await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .send({ fileId: file.id })
+      .expect(HttpStatus.CREATED);
+    expect(attached.body.data).toEqual({ noteId, fileId: file.id, attached: true });
+
+    const detail = await request(app.getHttpServer())
+      .get(apiUrl(`notes/${noteId}`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(HttpStatus.OK);
+    expect(detail.body.data.files).toHaveLength(1);
+    expect(detail.body.data.files[0].filename).toBe('attach.txt');
+    expect(detail.body.data.attachmentCount).toBe(1);
+
+    const again = await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .send({ fileId: file.id })
+      .expect(HttpStatus.CREATED);
+    expect(again.body.data.attached).toBe(true);
+
+    const detailAfter = await request(app.getHttpServer())
+      .get(apiUrl(`notes/${noteId}`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(HttpStatus.OK);
+    expect(detailAfter.body.data.files).toHaveLength(1);
+
+    const detached = await request(app.getHttpServer())
+      .delete(apiUrl(`notes/${noteId}/files/${file.id}`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(HttpStatus.OK);
+    expect(detached.body.data.detached).toBe(true);
+
+    const empty = await request(app.getHttpServer())
+      .get(apiUrl(`notes/${noteId}`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(HttpStatus.OK);
+    expect(empty.body.data.files).toHaveLength(0);
+
+    await request(app.getHttpServer())
+      .delete(apiUrl(`notes/${noteId}/files/${file.id}`))
+      .set('Authorization', `Bearer ${account.token}`)
+      .expect(HttpStatus.NOT_FOUND);
+  });
+
+  it('rejects attaching files the caller does not own or that are deleted', async () => {
+    const owner = await createAccount('attach-owner');
+    const stranger = await createAccount('attach-stranger');
+    const strangerFile = await uploadFile(stranger, 'stranger.txt');
+    const ownFile = await uploadFile(owner, 'own.txt');
+
+    const created = await request(app.getHttpServer())
+      .post(apiUrl('notes'))
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ title: 'Mine' })
+      .expect(HttpStatus.CREATED);
+    const noteId = created.body.data.id;
+
+    await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ fileId: strangerFile.id })
+      .expect(HttpStatus.NOT_FOUND);
+
+    await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ fileId: '00000000-0000-4000-8000-000000000000' })
+      .expect(HttpStatus.NOT_FOUND);
+
+    await request(app.getHttpServer())
+      .delete(apiUrl(`files/${ownFile.id}`))
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(HttpStatus.OK);
+
+    await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ fileId: ownFile.id })
+      .expect(HttpStatus.NOT_FOUND);
+
+    await request(app.getHttpServer())
+      .post(apiUrl(`notes/${noteId}/files`))
+      .set('Authorization', `Bearer ${stranger.token}`)
+      .send({ fileId: strangerFile.id })
+      .expect(HttpStatus.NOT_FOUND);
+  });
+
   it('audits note creation and deletion in the activity feed', async () => {
     const account = await createAccount('audit');
     const created = await request(app.getHttpServer())

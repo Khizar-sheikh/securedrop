@@ -180,6 +180,44 @@ export class NotesService {
     };
   }
 
+  /** Links one of the owner's active files to the note (idempotent). */
+  async attach(ownerId: string, noteId: string, fileId: string): Promise<{ noteId: string; fileId: string; attached: boolean }> {
+    const note = await this.findOwned(ownerId, noteId);
+
+    const file = await this.prisma.file.findFirst({
+      where: { id: fileId, ownerId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!file) {
+      throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+    }
+
+    const existing = await this.prisma.noteFile.findUnique({
+      where: { noteId_fileId: { noteId: note.id, fileId: file.id } },
+    });
+    if (existing) {
+      return { noteId: note.id, fileId: file.id, attached: true };
+    }
+
+    await this.prisma.noteFile.create({ data: { noteId: note.id, fileId: file.id } });
+    return { noteId: note.id, fileId: file.id, attached: true };
+  }
+
+  /** Removes an attachment link; the file itself is untouched. */
+  async detach(ownerId: string, noteId: string, fileId: string): Promise<{ noteId: string; fileId: string; detached: boolean }> {
+    const note = await this.findOwned(ownerId, noteId);
+
+    const link = await this.prisma.noteFile.findUnique({
+      where: { noteId_fileId: { noteId: note.id, fileId } },
+    });
+    if (!link) {
+      throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+    }
+
+    await this.prisma.noteFile.delete({ where: { id: link.id } });
+    return { noteId: note.id, fileId, detached: true };
+  }
+
   /** Soft delete; every active share of the note is revoked in the same transaction. */
   async remove(ownerId: string, noteId: string, context: RequestContext): Promise<{ id: string; deleted: boolean }> {
     const note = await this.findOwned(ownerId, noteId);
@@ -207,6 +245,7 @@ export class NotesService {
   private async findOwned(ownerId: string, noteId: string) {
     const note = await this.prisma.note.findFirst({
       where: { id: noteId, ownerId, deletedAt: null },
+      include: { _count: { select: { files: true } } },
     });
     if (!note) {
       throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);

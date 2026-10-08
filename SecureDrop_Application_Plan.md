@@ -595,7 +595,7 @@ Notes are secondary to file sharing.
 - [ ] Add code block support.
 - [ ] Add syntax highlighting.
 - [ ] Add tags.
-- [ ] Attach files to notes.
+- [x] Attach files to notes. (`POST/DELETE /notes/:id/files`, owner-scoped, idempotent, deleted files rejected — 2 tests)
 - [ ] Share note using same share architecture.
 - [ ] Apply expiration/revocation rules to shared notes.
 
