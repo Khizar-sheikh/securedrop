@@ -387,12 +387,12 @@ This is the core module.
 
 Allow owner to choose:
 
-- [ ] Expiration time.
-- [ ] Maximum accesses.
-- [ ] Allow download.
-- [ ] Require password.
-- [ ] Strict security mode.
-- [ ] Revoke manually.
+- [x] Expiration time. (1h / 24h / 7d / 30d / Never chips)
+- [x] Maximum accesses. (One time / 5 / 10 / Unlimited)
+- [x] Allow download. (switch, default on)
+- [x] Require password. (switch + 8-char minimum, hashed server-side)
+- [x] Strict security mode. (switch, stored on the share)
+- [x] Revoke manually. (Shares tab → confirm → `DELETE /shares/:id`)
 
 Later:
 
@@ -576,10 +576,10 @@ Owner must always be able to revoke access.
 - [x] Verify ownership. (owner-scoped → 404 for non-owners)
 - [x] Mark share revoked. (`revokedAt` set in a transaction)
 - [x] Invalidate active recipient sessions. (all open sessions revoked in the same transaction)
-- [ ] Reject future access.
-- [ ] Reject future downloads.
+- [ ] Reject future access. (pending public share endpoint, Phase 7)
+- [ ] Reject future downloads. (pending download endpoint, Phase 9)
 - [x] Audit revocation. (`SHARE_REVOKED`, once per share)
-- [ ] Show revoked state in UI.
+- [x] Show revoked state in UI. (status badge + revoke action in Shares tab)
 
 ---
 

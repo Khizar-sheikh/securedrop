@@ -113,7 +113,19 @@ export const FileDetailsScreen = () => {
               <DetailRow label="SHA-256" value={file.checksum} mono />
             </View>
 
-            <Button label={deleting ? 'Deleting…' : 'Delete file'} variant="danger" loading={deleting} onPress={confirmDelete} />
+            <Button
+              label="Create secure link"
+              onPress={() =>
+                router.push({
+                  pathname: '/share/create',
+                  params: { fileId: file.id, filename: file.filename },
+                })
+              }
+            />
+
+            <View style={styles.deleteSpacer}>
+              <Button label={deleting ? 'Deleting…' : 'Delete file'} variant="danger" loading={deleting} onPress={confirmDelete} />
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -133,5 +145,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   detailRow: { gap: 4 },
+  deleteSpacer: { marginTop: 12 },
   loading: { marginTop: 32 },
 });
