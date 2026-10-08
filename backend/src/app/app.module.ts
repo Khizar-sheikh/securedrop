@@ -10,6 +10,7 @@ import { HealthModule } from '../modules/health/health.module';
 import { AuthModule } from '../modules/auth/auth.module';
 import { FilesModule } from '../modules/files/files.module';
 import { SharesModule } from '../modules/shares/shares.module';
+import { NotesModule } from '../modules/notes/notes.module';
 import { CleanupModule } from '../modules/cleanup/cleanup.module';
 import { AppThrottlerGuard } from '../common/app-throttler.guard';
 import { AppConfig } from '../config/configuration';
@@ -32,6 +33,7 @@ import { APP_CONFIG } from '../config/tokens';
     AuthModule,
     FilesModule,
     SharesModule,
+    NotesModule,
     CleanupModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],

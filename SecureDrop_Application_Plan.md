@@ -587,10 +587,10 @@ Owner must always be able to revoke access.
 
 Notes are secondary to file sharing.
 
-- [ ] Create note model.
-- [ ] Create note.
-- [ ] Edit note.
-- [ ] Delete note.
+- [x] Create note model. (`Note` + `NoteFile` tables, soft delete, GIN index on tags, 9 tests)
+- [x] Create note. (`POST /api/v1/notes`, trimmed title, normalized tags, `NOTE_CREATED` audit)
+- [x] Edit note. (`PATCH /api/v1/notes/:id`, partial update, owner-scoped → 404)
+- [x] Delete note. (soft delete + revokes the note's shares in one transaction, `NOTE_DELETED` audit)
 - [ ] Add Markdown support.
 - [ ] Add code block support.
 - [ ] Add syntax highlighting.

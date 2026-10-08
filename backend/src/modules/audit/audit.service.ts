@@ -8,6 +8,7 @@ export interface AuditInput {
   actorUserId?: string | null;
   shareId?: string | null;
   fileId?: string | null;
+  noteId?: string | null;
   recipientSessionId?: string | null;
   ip?: string | null;
   userAgent?: string | null;
@@ -50,6 +51,7 @@ export class AuditService {
           actorUserId: input.actorUserId ?? null,
           shareId: input.shareId ?? null,
           fileId: input.fileId ?? null,
+          noteId: input.noteId ?? null,
           recipientSessionId: input.recipientSessionId ?? null,
           ip: input.ip ?? null,
           userAgent: input.userAgent ?? null,
@@ -72,6 +74,7 @@ export class AuditService {
         { actorUserId: userId },
         { share: { ownerId: userId } },
         { file: { ownerId: userId } },
+        { note: { ownerId: userId } },
       ],
     };
 
@@ -82,7 +85,13 @@ export class AuditService {
         take: query.limit,
         include: {
           file: { select: { originalFilename: true } },
-          share: { select: { file: { select: { originalFilename: true } } } },
+          note: { select: { title: true } },
+          share: {
+            select: {
+              file: { select: { originalFilename: true } },
+              note: { select: { title: true } },
+            },
+          },
         },
       }),
       this.prisma.auditEvent.count({ where }),
@@ -93,7 +102,12 @@ export class AuditService {
         id: event.id,
         type: event.type,
         createdAt: event.createdAt,
-        filename: event.file?.originalFilename ?? event.share?.file?.originalFilename ?? null,
+        filename:
+          event.file?.originalFilename ??
+          event.note?.title ??
+          event.share?.file?.originalFilename ??
+          event.share?.note?.title ??
+          null,
         reason: reasonOf(event.metadata),
         ip: event.ip,
       })),
