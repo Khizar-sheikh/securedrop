@@ -1,4 +1,5 @@
 import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
+import { parseTtlToSeconds } from '../common/ttl';
 
 const toBool = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined || value === '') return fallback;
@@ -98,6 +99,8 @@ export interface AppConfig {
     recipientSessionSecret: string;
     accessTtl: string;
     refreshTtl: string;
+    accessTtlSeconds: number;
+    refreshTtlSeconds: number;
   };
   upload: {
     maxBytes: number;
@@ -125,6 +128,8 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
     recipientSessionSecret: env.RECIPIENT_SESSION_SECRET ?? '',
     accessTtl: env.JWT_ACCESS_TTL ?? '15m',
     refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
+    accessTtlSeconds: parseTtlToSeconds(env.JWT_ACCESS_TTL ?? '15m'),
+    refreshTtlSeconds: parseTtlToSeconds(env.JWT_REFRESH_TTL ?? '30d'),
   },
   upload: {
     maxBytes: toInt(env.UPLOAD_MAX_BYTES, 100 * 1024 * 1024),

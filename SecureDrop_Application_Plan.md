@@ -291,20 +291,20 @@ Create database schema incrementally.
 
 # 9. PHASE 3 — Authentication
 
-- [ ] Create registration endpoint.
-- [ ] Validate email.
-- [ ] Validate password.
-- [ ] Hash passwords securely.
-- [ ] Never store plaintext passwords.
-- [ ] Create login endpoint.
-- [ ] Create authenticated session.
-- [ ] Create logout endpoint.
+- [x] Create registration endpoint. (`POST /api/v1/auth/register`, 5 tests)
+- [x] Validate email. (class-validator + lowercase normalization)
+- [x] Validate password. (policy in DTO + server-side `assertPasswordPolicy`)
+- [x] Hash passwords securely. (scrypt N=16384, per-password salt, timing-safe)
+- [x] Never store plaintext passwords. (verified in test against DB row)
+- [x] Create login endpoint. (`POST /api/v1/auth/login`, timing-equalized, 7 tests)
+- [x] Create authenticated session. (15m JWT access + 30d rotating Redis refresh session, stored hashed)
+- [x] Create logout endpoint. (`POST /api/v1/auth/logout`, idempotent, revokes refresh token)
 - [ ] Add authentication guard.
 - [ ] Add current-user endpoint.
 - [ ] Add rate limiting to authentication.
 - [ ] Add failed-login handling.
-- [ ] Add account status validation.
-- [ ] Add audit events for authentication.
+- [x] Add account status validation. (DISABLED → 403 `ACCOUNT_DISABLED` after password check)
+- [x] Add audit events for authentication. (`USER_REGISTERED`, `LOGIN_FAILED`, `USER_LOGIN`, `USER_LOGOUT`)
 
 ## App
 
