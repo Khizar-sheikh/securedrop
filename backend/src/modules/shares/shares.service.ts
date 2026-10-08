@@ -17,11 +17,27 @@ export class SharesService {
   ) {}
 
   async create(ownerId: string, dto: CreateShareDto, context: RequestContext) {
-    const file = await this.prisma.file.findFirst({
-      where: { id: dto.fileId, ownerId, deletedAt: null },
-    });
-    if (!file) {
-      throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+    if ((dto.fileId && dto.noteId) || (!dto.fileId && !dto.noteId)) {
+      throw new HttpException(fail(ERROR_CODES.VALIDATION_FAILED), 400);
+    }
+
+    let target: { fileId: string | null; noteId: string | null };
+    if (dto.fileId) {
+      const file = await this.prisma.file.findFirst({
+        where: { id: dto.fileId, ownerId, deletedAt: null },
+      });
+      if (!file) {
+        throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+      }
+      target = { fileId: file.id, noteId: null };
+    } else {
+      const note = await this.prisma.note.findFirst({
+        where: { id: dto.noteId!, ownerId, deletedAt: null },
+      });
+      if (!note) {
+        throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+      }
+      target = { fileId: null, noteId: note.id };
     }
 
     const oneTime = dto.oneTime ?? false;
@@ -30,7 +46,7 @@ export class SharesService {
 
     const share = await this.prisma.share.create({
       data: {
-        fileId: file.id,
+        ...target,
         ownerId,
         tokenHash: hashToken(token),
         expiresAt: dto.expiresInSeconds != null ? new Date(Date.now() + dto.expiresInSeconds * 1000) : null,
@@ -47,6 +63,7 @@ export class SharesService {
       actorUserId: ownerId,
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       ip: context.ip,
       userAgent: context.userAgent,
       metadata: {
@@ -67,7 +84,10 @@ export class SharesService {
       where: { ownerId },
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { file: { select: { originalFilename: true, sizeBytes: true, deletedAt: true } } },
+      include: {
+        file: { select: { originalFilename: true, sizeBytes: true, deletedAt: true } },
+        note: { select: { title: true, content: true, deletedAt: true } },
+      },
     });
     return { items: shares.map(toPublicShareListItem) };
   }
@@ -94,6 +114,7 @@ export class SharesService {
       actorUserId: ownerId,
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       ip: context.ip,
       userAgent: context.userAgent,
     });

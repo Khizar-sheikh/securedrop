@@ -1,6 +1,7 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
-import { File, Share } from '@prisma/client';
-import type { Readable } from 'node:stream';
+import { File, Note, Share } from '@prisma/client';
+import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { PrismaService } from '../../database/prisma.service';
 import { StorageService } from '../../storage/storage.service';
 import { AuditService } from '../audit/audit.service';
@@ -16,10 +17,21 @@ import { DownloadShareDto } from './dto/download-share.dto';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,120}$/;
 
-type ShareWithFile = Share & { file: File | null };
+/** What a share points at: exactly one of the two (enforced by a DB CHECK). */
+type ShareTarget = { kind: 'file'; file: File } | { kind: 'note'; note: Note };
+type ShareWithTargets = Share & { file: File | null; note: Note | null };
+
+/** Recipient-facing export name for a shared note. */
+const noteExportFilename = (title: string): string => {
+  const safe = title.replace(/[\\/:*?"<>|]/g, '_').trim().replace(/\.md$/i, '');
+  return `${safe || 'note'}.md`;
+};
+
+const noteChecksum = (content: string): string => createHash('sha256').update(content, 'utf8').digest('hex');
 
 export interface OpenedShare {
   file: { filename: string; mimeType: string; sizeBytes: number; checksum: string };
+  note?: { id: string; title: string; tags: string[]; content: string };
   share: {
     expiresAt: Date | null;
     allowDownload: boolean;
@@ -34,6 +46,7 @@ export interface OpenedShare {
 
 export interface ShareInspection {
   file: { filename: string; mimeType: string; sizeBytes: number; checksum: string };
+  note?: { id: string; title: string; tags: string[] };
   share: OpenedShare['share'];
   requiresPassword: boolean;
 }
@@ -41,6 +54,7 @@ export interface ShareInspection {
 export interface DownloadResult {
   filename: string;
   sizeBytes: number;
+  contentType: string;
   body: Readable;
 }
 
@@ -69,15 +83,16 @@ export class PublicSharesService {
     const tokenHash = hashToken(dto.token);
     const share = await this.prisma.share.findUnique({
       where: { tokenHash },
-      include: { file: true },
+      include: { file: true, note: true },
     });
 
-    if (!share || share.file === null || share.file.deletedAt !== null) {
+    const target = share ? this.targetOf(share) : null;
+    if (!share || !target) {
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
 
     if (dto.sessionSecret) {
-      return this.restore(share, dto.sessionSecret, context);
+      return this.restore(share, target, dto.sessionSecret, context);
     }
 
     if (share.revokedAt) {
@@ -123,6 +138,7 @@ export class PublicSharesService {
       type: 'RECIPIENT_SESSION_CREATED',
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       ip: context.ip,
       userAgent: context.userAgent,
     });
@@ -130,6 +146,7 @@ export class PublicSharesService {
       type: 'SHARE_OPENED',
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       ip: context.ip,
       userAgent: context.userAgent,
     });
@@ -137,7 +154,8 @@ export class PublicSharesService {
     const refreshed = (await this.prisma.share.findUnique({ where: { id: share.id } })) ?? share;
 
     return {
-      file: this.authorizedFile(share.file),
+      file: this.targetView(target),
+      ...(target.kind === 'note' ? { note: { ...this.noteMeta(target.note), content: target.note.content } } : {}),
       share: this.shareRules(refreshed),
       session: { secret, expiresAt: sessionExpiry },
     };
@@ -145,7 +163,8 @@ export class PublicSharesService {
 
   /**
    * Metadata-only preview used by the recipient screen: same validation as a
-   * real open, but no session is created and no access is consumed.
+   * real open, but no session is created and no access is consumed. Note
+   * content is withheld until a real open.
    */
   async inspect(token: string): Promise<ShareInspection> {
     if (!TOKEN_PATTERN.test(token)) {
@@ -154,10 +173,11 @@ export class PublicSharesService {
 
     const share = await this.prisma.share.findUnique({
       where: { tokenHash: hashToken(token) },
-      include: { file: true },
+      include: { file: true, note: true },
     });
 
-    if (!share || share.file === null || share.file.deletedAt !== null) {
+    const target = share ? this.targetOf(share) : null;
+    if (!share || !target) {
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
     if (share.revokedAt) {
@@ -171,23 +191,22 @@ export class PublicSharesService {
     }
 
     return {
-      file: this.authorizedFile(share.file),
+      file: this.targetView(target),
+      ...(target.kind === 'note' ? { note: this.noteMeta(target.note) } : {}),
       share: this.shareRules(share),
       requiresPassword: share.passwordHash !== null,
     };
   }
 
   private async restore(
-    share: ShareWithFile,
+    share: ShareWithTargets,
+    target: ShareTarget,
     sessionSecret: string,
     context: RequestContext,
   ): Promise<OpenedShare> {
     // Share state is checked first so a revoked link answers "revoked" instead
     // of a confusing session error (revocation cascades to sessions).
-    if (share.file === null) {
-      throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
-    }
-    if (share.revokedAt || share.file.deletedAt !== null) {
+    if (share.revokedAt) {
       throw new HttpException(fail(ERROR_CODES.SHARE_REVOKED), 410);
     }
     if (share.expiresAt && share.expiresAt.getTime() <= Date.now()) {
@@ -218,13 +237,15 @@ export class PublicSharesService {
       type: 'SHARE_OPENED',
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       recipientSessionId: session.id,
       ip: context.ip,
       userAgent: context.userAgent,
     });
 
     return {
-      file: this.authorizedFile(share.file),
+      file: this.targetView(target),
+      ...(target.kind === 'note' ? { note: { ...this.noteMeta(target.note), content: target.note.content } } : {}),
       share: this.shareRules(share),
       session: { secret: sessionSecret, expiresAt: session.expiresAt },
     };
@@ -236,7 +257,7 @@ export class PublicSharesService {
    * is recorded and the change audited without blocking the recipient.
    */
   private async enforceBinding(
-    share: ShareWithFile,
+    share: ShareWithTargets,
     session: { id: string; ip: string | null },
     context: RequestContext,
   ): Promise<void> {
@@ -248,6 +269,7 @@ export class PublicSharesService {
         type: 'SESSION_CHANGED',
         shareId: share.id,
         fileId: share.fileId,
+        noteId: share.noteId,
         recipientSessionId: session.id,
         ip: context.ip,
         userAgent: context.userAgent,
@@ -264,6 +286,7 @@ export class PublicSharesService {
       type: 'SESSION_CHANGED',
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       recipientSessionId: session.id,
       ip: context.ip,
       userAgent: context.userAgent,
@@ -273,7 +296,7 @@ export class PublicSharesService {
 
   private async denied(
     reason: string,
-    share: { id?: string; fileId?: string | null } | null,
+    share: { id?: string; fileId?: string | null; noteId?: string | null } | null,
     context: RequestContext,
     recipientSessionId?: string,
   ): Promise<void> {
@@ -281,6 +304,7 @@ export class PublicSharesService {
       type: 'ACCESS_DENIED',
       shareId: share?.id ?? null,
       fileId: share?.fileId ?? null,
+      noteId: share?.noteId ?? null,
       recipientSessionId: recipientSessionId ?? null,
       ip: context.ip,
       userAgent: context.userAgent,
@@ -297,15 +321,17 @@ export class PublicSharesService {
 
     const share = await this.prisma.share.findUnique({
       where: { tokenHash: hashToken(dto.token) },
-      include: { file: true },
+      include: { file: true, note: true },
     });
 
     if (!share) {
       await this.denied('unknown_token', null, context);
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
-    if (share.file === null || share.file.deletedAt !== null) {
-      await this.denied('file_deleted', share, context);
+
+    const target = this.targetOf(share);
+    if (!target) {
+      await this.denied(share.noteId ? 'note_deleted' : 'file_deleted', share, context);
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
     if (share.revokedAt) {
@@ -338,7 +364,24 @@ export class PublicSharesService {
 
     await this.enforceBinding(share, session, context);
 
-    const { body } = await this.storage.getObjectStream(share.file.storageKey);
+    let body: Readable;
+    let filename: string;
+    let sizeBytes: number;
+    let contentType: string;
+
+    if (target.kind === 'file') {
+      const stream = await this.storage.getObjectStream(target.file.storageKey);
+      body = stream.body;
+      filename = target.file.originalFilename;
+      sizeBytes = target.file.sizeBytes;
+      contentType = 'application/octet-stream';
+    } else {
+      const content = target.note.content;
+      body = Readable.from([Buffer.from(content, 'utf8')]);
+      filename = noteExportFilename(target.note.title);
+      sizeBytes = Buffer.byteLength(content, 'utf8');
+      contentType = 'text/markdown; charset=utf-8';
+    }
 
     try {
       await this.prisma.$transaction([
@@ -360,17 +403,14 @@ export class PublicSharesService {
       type: 'SHARE_DOWNLOADED',
       shareId: share.id,
       fileId: share.fileId,
+      noteId: share.noteId,
       recipientSessionId: session.id,
       ip: context.ip,
       userAgent: context.userAgent,
-      metadata: { filename: share.file.originalFilename, sizeBytes: share.file.sizeBytes },
+      metadata: { filename, sizeBytes },
     });
 
-    return {
-      filename: share.file.originalFilename,
-      sizeBytes: share.file.sizeBytes,
-      body,
-    };
+    return { filename, sizeBytes, contentType, body };
   }
 
   /**
@@ -413,6 +453,35 @@ export class PublicSharesService {
       return shareExpiresAt;
     }
     return hardLimit;
+  }
+
+  /** Resolves the share's single target; null when missing or soft-deleted. */
+  private targetOf(share: ShareWithTargets): ShareTarget | null {
+    if (share.noteId !== null) {
+      const note = share.note;
+      if (!note || note.deletedAt !== null) return null;
+      return { kind: 'note', note };
+    }
+    const file = share.file;
+    if (!file || file.deletedAt !== null) return null;
+    return { kind: 'file', file };
+  }
+
+  private targetView(target: ShareTarget): OpenedShare['file'] {
+    if (target.kind === 'file') {
+      return this.authorizedFile(target.file);
+    }
+    const note = target.note;
+    return {
+      filename: noteExportFilename(note.title),
+      mimeType: 'text/markdown',
+      sizeBytes: Buffer.byteLength(note.content, 'utf8'),
+      checksum: noteChecksum(note.content),
+    };
+  }
+
+  private noteMeta(note: Note): { id: string; title: string; tags: string[] } {
+    return { id: note.id, title: note.title, tags: note.tags };
   }
 
   private authorizedFile(file: File): OpenedShare['file'] {

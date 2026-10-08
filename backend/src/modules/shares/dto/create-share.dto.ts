@@ -1,8 +1,14 @@
 import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
 
 export class CreateShareDto {
+  /** Exactly one of fileId / noteId must be provided. */
+  @IsOptional()
   @IsUUID()
-  fileId!: string;
+  fileId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  noteId?: string;
 
   @IsOptional()
   @IsInt()

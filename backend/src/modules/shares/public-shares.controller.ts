@@ -32,7 +32,7 @@ export class PublicSharesController {
   ): Promise<void> {
     const file = await this.publicShares.download(dto, getRequestContext(req));
 
-    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Type', file.contentType);
     res.setHeader('Content-Length', String(file.sizeBytes));
     res.setHeader('Content-Disposition', contentDisposition(file.filename));
     res.setHeader('X-Content-Type-Options', 'nosniff');

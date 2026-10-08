@@ -3,7 +3,7 @@ import { Share } from '@prisma/client';
 export interface PublicShare {
   id: string;
   fileId: string | null;
-  noteId?: string | null;
+  noteId: string | null;
   expiresAt: Date | null;
   allowDownload: boolean;
   maxAccesses: number | null;
@@ -25,6 +25,7 @@ export interface PublicShare {
 export const toPublicShare = (share: Share, rawToken?: string): PublicShare => ({
   id: share.id,
   fileId: share.fileId,
+  noteId: share.noteId,
   expiresAt: share.expiresAt,
   allowDownload: share.allowDownload,
   maxAccesses: share.maxAccesses,
@@ -39,16 +40,27 @@ export const toPublicShare = (share: Share, rawToken?: string): PublicShare => (
 });
 
 export interface PublicShareListItem extends PublicShare {
+  kind: 'file' | 'note';
   filename: string;
   sizeBytes: number;
   fileDeleted: boolean;
 }
 
 export const toPublicShareListItem = (
-  share: Share & { file: { originalFilename: string; sizeBytes: number; deletedAt: Date | null } | null },
+  share: Share & {
+    file: { originalFilename: string; sizeBytes: number; deletedAt: Date | null } | null;
+    note: { title: string; content: string; deletedAt: Date | null } | null;
+  },
 ): PublicShareListItem => ({
   ...toPublicShare(share),
-  filename: share.file?.originalFilename ?? '',
-  sizeBytes: share.file?.sizeBytes ?? 0,
-  fileDeleted: share.file === null || share.file.deletedAt !== null,
+  kind: share.noteId !== null ? 'note' : 'file',
+  filename: share.note?.title ?? share.file?.originalFilename ?? '',
+  sizeBytes:
+    share.note !== null && share.note !== undefined
+      ? Buffer.byteLength(share.note.content, 'utf8')
+      : (share.file?.sizeBytes ?? 0),
+  fileDeleted:
+    share.noteId !== null
+      ? share.note === null || share.note.deletedAt !== null
+      : share.file === null || share.file.deletedAt !== null,
 });
