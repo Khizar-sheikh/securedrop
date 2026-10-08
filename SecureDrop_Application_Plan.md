@@ -696,7 +696,7 @@ Recent
 UX rules:
 
 - [x] Upload should be immediately accessible. (Upload button always in header: pick → upload → done)
-- [x] File type should be visually recognizable. (emoji type icon per row, mime-aware)
+- [x] File type should be visually recognizable. (Ionicons tile per row by extension + mime; tab-bar icons, no emoji)
 - [x] Show useful metadata. (size · upload date)
 - [x] Avoid clutter. (single-column cards, one primary action per screen)
 - [x] Use skeleton loading. (placeholder rows on first load instead of a bare spinner)

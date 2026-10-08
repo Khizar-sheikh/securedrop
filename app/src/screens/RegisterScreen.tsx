@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -47,6 +48,12 @@ export const RegisterScreen = () => {
     <Screen>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.brand}>
+            <View style={[styles.brandMark, { backgroundColor: theme.colors.primary }]}>
+              <Ionicons name="shield-checkmark" size={22} color={theme.colors.primaryText} />
+            </View>
+            <Text style={[theme.typography.heading, { color: theme.colors.text }]}>SecureDrop</Text>
+          </View>
           <Text style={[theme.typography.title, { color: theme.colors.text }]}>Create account</Text>
           <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textMuted }]}>
             Choose a password of at least 8 characters.
@@ -110,6 +117,14 @@ export const RegisterScreen = () => {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingVertical: 24 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  brandMark: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subtitle: { marginTop: 8, marginBottom: 24 },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' },
 });

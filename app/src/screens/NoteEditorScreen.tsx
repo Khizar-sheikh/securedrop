@@ -415,6 +415,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     paddingHorizontal: 6,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 });

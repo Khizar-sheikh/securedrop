@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -200,9 +201,12 @@ export const SharesScreen = () => {
             <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.colors.primary} />
           }
           ListEmptyComponent={
-            <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
-              No share links yet. Open a file or note and tap “Create secure link”.
-            </Text>
+            <View style={styles.emptyBlock}>
+              <Ionicons name="link-outline" size={30} color={theme.colors.textMuted} />
+              <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
+                No share links yet. Open a file or note and tap “Create secure link”.
+              </Text>
+            </View>
           }
         />
       )}
@@ -227,6 +231,7 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   revokeButton: { minHeight: 36, paddingVertical: 6 },
   list: { paddingBottom: 32 },
-  empty: { textAlign: 'center', marginTop: 32 },
+  empty: { textAlign: 'center' },
+  emptyBlock: { alignItems: 'center', gap: 10, marginTop: 40 },
   loading: { marginTop: 32 },
 });

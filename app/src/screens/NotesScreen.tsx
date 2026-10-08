@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -81,6 +82,9 @@ export const NotesScreen = () => {
         { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
       ]}
     >
+      <View style={[styles.rowIcon, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Ionicons name="reader-outline" size={20} color={theme.colors.textMuted} />
+      </View>
       <View style={styles.rowText}>
         <Text numberOfLines={1} style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>
           {item.title}
@@ -139,9 +143,12 @@ export const NotesScreen = () => {
             <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={theme.colors.primary} />
           }
           ListEmptyComponent={
-            <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
-              {offline ? 'Notes will show up once you are back online.' : 'No notes yet. Tap New note to write one.'}
-            </Text>
+            <View style={styles.emptyBlock}>
+              <Ionicons name="reader-outline" size={30} color={theme.colors.textMuted} />
+              <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
+                {offline ? 'Notes will show up once you are back online.' : 'No notes yet. Tap New note to write one.'}
+              </Text>
+            </View>
           }
         />
       )}
@@ -174,10 +181,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
   rowText: { gap: 4, flex: 1 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 2 },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   skeletonLine: { height: 12, borderRadius: 6, marginBottom: 6 },
   list: { paddingBottom: 32 },
-  empty: { textAlign: 'center', marginTop: 32 },
+  empty: { textAlign: 'center' },
+  emptyBlock: { alignItems: 'center', gap: 10, marginTop: 40 },
 });

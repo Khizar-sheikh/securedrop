@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -117,7 +118,9 @@ export const FilesScreen = () => {
         { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
       ]}
     >
-      <Text style={styles.rowIcon}>{fileTypeIcon(item.filename, item.mimeType)}</Text>
+      <View style={[styles.rowIcon, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Ionicons name={fileTypeIcon(item.filename, item.mimeType)} size={20} color={theme.colors.textMuted} />
+      </View>
       <View style={styles.rowText}>
         <Text numberOfLines={1} style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>
           {item.filename}
@@ -134,7 +137,7 @@ export const FilesScreen = () => {
     <Screen>
       <View style={styles.header}>
         <View>
-          <Text style={[theme.typography.title, { color: theme.colors.text }]}>Your Files</Text>
+          <Text style={[theme.typography.title, { color: theme.colors.text }]}>Files</Text>
           <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
             {files.loading ? 'Loading…' : `${files.items.length} file${files.items.length === 1 ? '' : 's'}`}
           </Text>
@@ -192,7 +195,7 @@ export const FilesScreen = () => {
               key={index}
               style={[styles.row, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
             >
-              <Text style={styles.rowIcon}>📄</Text>
+              <View style={[styles.rowIcon, { backgroundColor: theme.colors.surfaceVariant }]} />
               <View style={styles.rowText}>
                 <View style={[styles.skeletonLine, { width: '65%', backgroundColor: theme.colors.border }]} />
                 <View style={[styles.skeletonLine, { width: '40%', backgroundColor: theme.colors.border }]} />
@@ -216,9 +219,12 @@ export const FilesScreen = () => {
           onEndReachedThreshold={0.4}
           onEndReached={() => void files.loadMore()}
           ListEmptyComponent={
-            <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
-              {offline ? 'Files will show up once you are back online.' : 'No files yet. Tap Upload to add one.'}
-            </Text>
+            <View style={styles.emptyBlock}>
+              <Ionicons name="document-text-outline" size={30} color={theme.colors.textMuted} />
+              <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
+                {offline ? 'Files will show up once you are back online.' : 'No files yet. Tap Upload to add one.'}
+              </Text>
+            </View>
           }
           ListFooterComponent={files.loadingMore ? <ActivityIndicator color={theme.colors.primary} /> : null}
         />
@@ -254,8 +260,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowText: { gap: 4, flex: 1 },
-  rowIcon: { fontSize: 22, marginRight: 4 },
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
   skeletonLine: { height: 12, borderRadius: 6, marginBottom: 6 },
   list: { paddingBottom: 32 },
-  empty: { textAlign: 'center', marginTop: 32 },
+  empty: { textAlign: 'center' },
+  emptyBlock: { alignItems: 'center', gap: 10, marginTop: 40 },
 });
