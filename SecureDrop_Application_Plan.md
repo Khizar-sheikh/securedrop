@@ -308,13 +308,13 @@ Create database schema incrementally.
 
 ## App
 
-- [ ] Create welcome screen.
-- [ ] Create login screen.
-- [ ] Create registration screen.
-- [ ] Create session persistence.
-- [ ] Create logout flow.
-- [ ] Handle expired sessions.
-- [ ] Handle authentication errors.
+- [x] Create welcome screen. (brand + Sign in / Create account actions)
+- [x] Create login screen. (client validation, inline errors, auto sign-in on success)
+- [x] Create registration screen. (email + password + confirmation, mirrors server policy)
+- [x] Create session persistence. (AsyncStorage session, validated against `/auth/me` at startup)
+- [x] Create logout flow. (Settings → `POST /auth/logout` → local clear → login route)
+- [x] Handle expired sessions. (one silent refresh + retry, then redirect to login)
+- [x] Handle authentication errors. (server messages surfaced inline; network vs session errors distinguished)
 
 ---
 

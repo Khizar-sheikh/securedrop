@@ -25,6 +25,8 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Query string parameters (undefined/null values are dropped). */
   query?: Record<string, string | number | boolean | undefined | null>;
+  /** Internal: prevents a refresh-and-retry loop. */
+  skipRefresh?: boolean;
 }
 
 let accessToken: string | null = null;
@@ -35,6 +37,20 @@ export const setAccessToken = (token: string | null): void => {
 };
 
 export const getAccessToken = (): string | null => accessToken;
+
+type RefreshHandler = () => Promise<boolean>;
+let refreshHandler: RefreshHandler | null = null;
+
+/**
+ * Registered by the auth provider: attempts one silent token refresh.
+ * Returns true when a new access token is available and the call can be retried.
+ */
+export const setRefreshHandler = (handler: RefreshHandler | null): void => {
+  refreshHandler = handler;
+};
+
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+const isAuthPath = (path: string): boolean => AUTH_PATHS.some((prefix) => path.startsWith(prefix));
 
 const buildUrl = (path: string, query?: RequestOptions['query']): string => {
   const url = `${env.apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
@@ -55,7 +71,7 @@ const buildUrl = (path: string, query?: RequestOptions['query']): string => {
  * Throws ApiError for API failures, network errors and timeouts.
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token, signal, timeoutMs = 30_000, query } = options;
+  const { method = 'GET', body, token, signal, timeoutMs = 30_000, query, skipRefresh } = options;
   const url = buildUrl(path, query);
 
   const headers: Record<string, string> = { Accept: 'application/json' };
@@ -91,7 +107,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
 
     if (!payload.success) {
-      throw new ApiError(payload.error.code, payload.error.message, response.status);
+      const { code, message } = payload.error;
+      const expired =
+        response.status === 401 && (code === 'SESSION_EXPIRED' || code === 'UNAUTHORIZED');
+
+      // One silent refresh, then retry — never on auth endpoints themselves.
+      if (expired && !skipRefresh && !isAuthPath(path) && refreshHandler) {
+        const refreshed = await refreshHandler();
+        if (refreshed) {
+          return apiRequest<T>(path, { ...options, skipRefresh: true });
+        }
+      }
+
+      throw new ApiError(code, message, response.status);
     }
 
     return payload.data;
