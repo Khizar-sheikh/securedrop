@@ -607,15 +607,14 @@ Owner should be able to understand what happened.
 
 Show:
 
-- [ ] Share created.
-- [ ] Share opened.
-- [ ] File downloaded.
-- [ ] Share revoked.
-- [ ] Access denied.
-- [ ] Session changed.
-- [ ] Suspicious access signal.
-
-Avoid exposing unnecessary sensitive information.
+- [x] Share created. (`GET /api/v1/audit` feed + Activity screen)
+- [x] Share opened.
+- [x] File downloaded.
+- [x] Share revoked.
+- [x] Access denied. (with a friendly reason, never raw error codes)
+- [x] Session changed.
+- [x] Suspicious access signal. (denied/locked/changed events highlighted in red)
+- [x] Avoid exposing unnecessary sensitive information. (no session ids, hashes, user-agents, storage keys or tokens — tested)
 
 Possible event display:
 

@@ -37,3 +37,10 @@ export const formatRelativeExpiry = (expiresAt: string | null): string => {
   const days = Math.ceil(hours / 24);
   return `Expires in ${days} day${days === 1 ? '' : 's'}`;
 };
+
+/** Activity-feed timestamp: date + clock time in the device timezone. */
+export const formatActivityTime = (value: string | Date): string => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${formatDate(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};

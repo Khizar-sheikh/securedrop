@@ -165,9 +165,16 @@ export const SharesScreen = () => {
     <Screen>
       <View style={styles.header}>
         <Text style={[theme.typography.title, { color: theme.colors.text }]}>Shares</Text>
-        <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
-          {loading ? 'Loading…' : `${items.length} link${items.length === 1 ? '' : 's'}`}
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
+            {loading ? 'Loading…' : `${items.length} link${items.length === 1 ? '' : 's'}`}
+          </Text>
+          <Pressable accessibilityRole="link" onPress={() => router.push('/activity')} hitSlop={6}>
+            <Text style={[theme.typography.caption, { color: theme.colors.primary, fontWeight: '600' }]}>
+              Activity
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <FormError message={error} />
@@ -196,6 +203,7 @@ export const SharesScreen = () => {
 
 const styles = StyleSheet.create({
   header: { paddingTop: 16, paddingBottom: 12, gap: 4 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   card: {
     borderWidth: 1,
     borderRadius: 12,

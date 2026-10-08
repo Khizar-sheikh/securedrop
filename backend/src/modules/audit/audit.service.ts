@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditEventType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { ListAuditQuery } from './dto/list-audit.query';
 
 export interface AuditInput {
   type: AuditEventType;
@@ -12,6 +13,24 @@ export interface AuditInput {
   userAgent?: string | null;
   metadata?: Prisma.InputJsonValue;
 }
+
+/** Owner-facing activity entry: useful signal, no internal identifiers. */
+export interface ActivityItem {
+  id: string;
+  type: AuditEventType;
+  createdAt: Date;
+  filename: string | null;
+  reason: string | null;
+  ip: string | null;
+}
+
+const reasonOf = (metadata: Prisma.JsonValue | null): string | null => {
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const reason = (metadata as { reason?: unknown }).reason;
+    if (typeof reason === 'string') return reason;
+  }
+  return null;
+};
 
 /**
  * Append-only audit trail. Auditing must never break the main flow, so
@@ -40,5 +59,45 @@ export class AuditService {
     } catch (error) {
       this.logger.error(`audit write failed (${input.type}): ${(error as Error).message}`);
     }
+  }
+
+  /** Activity the owner is entitled to: their own actions plus events on their files/shares. */
+  async listForOwner(
+    userId: string,
+    query: ListAuditQuery,
+  ): Promise<{ items: ActivityItem[]; hasMore: boolean }> {
+    const where: Prisma.AuditEventWhereInput = {
+      ...(query.type ? { type: query.type } : {}),
+      OR: [
+        { actorUserId: userId },
+        { share: { ownerId: userId } },
+        { file: { ownerId: userId } },
+      ],
+    };
+
+    const [events, total] = await Promise.all([
+      this.prisma.auditEvent.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: query.limit,
+        include: {
+          file: { select: { originalFilename: true } },
+          share: { select: { file: { select: { originalFilename: true } } } },
+        },
+      }),
+      this.prisma.auditEvent.count({ where }),
+    ]);
+
+    return {
+      items: events.map((event) => ({
+        id: event.id,
+        type: event.type,
+        createdAt: event.createdAt,
+        filename: event.file?.originalFilename ?? event.share?.file?.originalFilename ?? null,
+        reason: reasonOf(event.metadata),
+        ip: event.ip,
+      })),
+      hasMore: total > events.length,
+    };
   }
 }
