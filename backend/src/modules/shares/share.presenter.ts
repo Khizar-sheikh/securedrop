@@ -2,7 +2,8 @@ import { Share } from '@prisma/client';
 
 export interface PublicShare {
   id: string;
-  fileId: string;
+  fileId: string | null;
+  noteId?: string | null;
   expiresAt: Date | null;
   allowDownload: boolean;
   maxAccesses: number | null;
@@ -44,10 +45,10 @@ export interface PublicShareListItem extends PublicShare {
 }
 
 export const toPublicShareListItem = (
-  share: Share & { file: { originalFilename: string; sizeBytes: number; deletedAt: Date | null } },
+  share: Share & { file: { originalFilename: string; sizeBytes: number; deletedAt: Date | null } | null },
 ): PublicShareListItem => ({
   ...toPublicShare(share),
-  filename: share.file.originalFilename,
-  sizeBytes: share.file.sizeBytes,
-  fileDeleted: share.file.deletedAt !== null,
+  filename: share.file?.originalFilename ?? '',
+  sizeBytes: share.file?.sizeBytes ?? 0,
+  fileDeleted: share.file === null || share.file.deletedAt !== null,
 });

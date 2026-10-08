@@ -24,6 +24,7 @@ model User {
   updatedAt    DateTime      @updatedAt
 
   files       File[]
+  notes       Note[]
   shares      Share[]
   auditEvents AuditEvent[]
 }
@@ -43,18 +44,21 @@ model File {
   deletedAt        DateTime? // soft delete
 
   shares         Share[]
+  noteFiles      NoteFile[]
   auditEvents    AuditEvent[]
 
   @@index([ownerId, createdAt])
 }
 
-/// A controlled grant of access to one file.
+/// A controlled grant of access to exactly one file or one note.
 /// Only the SHA-256 of the link token is stored, so a database leak cannot
 /// reveal any working link.
 model Share {
-  id      String @id @default(uuid())
-  fileId  String
-  file    File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  id String @id @default(uuid())
+  fileId String?
+  file   File?  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  noteId String?
+  note   Note?  @relation(fields: [noteId], references: [id], onDelete: Cascade)
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -78,6 +82,7 @@ model Share {
 
   @@index([ownerId, createdAt])
   @@index([fileId])
+  @@index([noteId])
 }
 
 /// Server-side session for a recipient that opened a share.
@@ -103,6 +108,43 @@ model RecipientSession {
   @@index([shareId])
 }
 
+/// Markdown note owned by a user; can be shared with the same Share
+/// architecture as files (exactly one of fileId/noteId per share).
+model Note {
+  id      String  @id @default(uuid())
+  ownerId String
+  owner   User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  title   String
+  content String  @default("") // markdown source
+  tags    String[] @default([])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // soft delete
+
+  files       NoteFile[]
+  shares       Share[]
+  auditEvents AuditEvent[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, deletedAt])
+  @@index([tags], type: Gin)
+}
+
+/// Join table linking a note to attached uploaded files.
+model NoteFile {
+  id      String   @id @default(uuid())
+  noteId  String
+  fileId  String
+  note    Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  file    File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  addedAt DateTime @default(now())
+
+  @@unique([noteId, fileId])
+  @@index([fileId])
+}
+
 enum AuditEventType {
   USER_REGISTERED
   USER_LOGIN
@@ -118,6 +160,8 @@ enum AuditEventType {
   ACCESS_DENIED
   RECIPIENT_SESSION_CREATED
   SESSION_CHANGED
+  NOTE_CREATED
+  NOTE_DELETED
 }
 
 /// Append-only security trail.
@@ -129,6 +173,7 @@ model AuditEvent {
   actorUserId           String?
   shareId               String?
   fileId                String?
+  noteId                String?
   recipientSessionId    String?
   ip                    String?
   userAgent             String?
@@ -138,9 +183,11 @@ model AuditEvent {
   actor   User?             @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
   share   Share?            @relation(fields: [shareId], references: [id], onDelete: Cascade)
   file    File?             @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  session RecipientSession? @relation(fields: [recipientSessionId], references: [id], onDelete: Cascade)
+  note    Note?             @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  session RecipientSession? @relation(fields: [recipientSessionId], references: [id], onDelete: SetNull)
 
   @@index([type, createdAt])
   @@index([shareId, createdAt])
   @@index([actorUserId, createdAt])
+  @@index([noteId, createdAt])
 }

@@ -16,7 +16,7 @@ import { DownloadShareDto } from './dto/download-share.dto';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,120}$/;
 
-type ShareWithFile = Share & { file: File };
+type ShareWithFile = Share & { file: File | null };
 
 export interface OpenedShare {
   file: { filename: string; mimeType: string; sizeBytes: number; checksum: string };
@@ -72,7 +72,7 @@ export class PublicSharesService {
       include: { file: true },
     });
 
-    if (!share || share.file.deletedAt !== null) {
+    if (!share || share.file === null || share.file.deletedAt !== null) {
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
 
@@ -157,7 +157,7 @@ export class PublicSharesService {
       include: { file: true },
     });
 
-    if (!share || share.file.deletedAt !== null) {
+    if (!share || share.file === null || share.file.deletedAt !== null) {
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
     if (share.revokedAt) {
@@ -184,6 +184,9 @@ export class PublicSharesService {
   ): Promise<OpenedShare> {
     // Share state is checked first so a revoked link answers "revoked" instead
     // of a confusing session error (revocation cascades to sessions).
+    if (share.file === null) {
+      throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
+    }
     if (share.revokedAt || share.file.deletedAt !== null) {
       throw new HttpException(fail(ERROR_CODES.SHARE_REVOKED), 410);
     }
@@ -270,7 +273,7 @@ export class PublicSharesService {
 
   private async denied(
     reason: string,
-    share: { id?: string; fileId?: string } | null,
+    share: { id?: string; fileId?: string | null } | null,
     context: RequestContext,
     recipientSessionId?: string,
   ): Promise<void> {
@@ -301,7 +304,7 @@ export class PublicSharesService {
       await this.denied('unknown_token', null, context);
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
-    if (share.file.deletedAt !== null) {
+    if (share.file === null || share.file.deletedAt !== null) {
       await this.denied('file_deleted', share, context);
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
