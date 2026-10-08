@@ -1,6 +1,7 @@
-import { getDocumentAsync } from 'expo-document-picker';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { getDocumentAsync } from 'expo-document-picker';
 import { Button } from '../components/Button';
 import { FormError } from '../components/FormError';
 import { ProgressBar } from '../components/ProgressBar';
@@ -19,7 +20,9 @@ type UploadState = 'idle' | 'uploading' | 'error' | 'success';
 
 export const FilesScreen = () => {
   const theme = useTheme();
+  const router = useRouter();
   const files = useFileList();
+  const { refresh } = files;
 
   const [pending, setPending] = useState<PendingUpload | null>(null);
   const [state, setState] = useState<UploadState>('idle');
@@ -27,36 +30,45 @@ export const FilesScreen = () => {
   const [message, setMessage] = useState<string | null>(null);
   const jobRef = useRef<UploadJob | null>(null);
 
-  const startUpload = useCallback((asset: PendingUpload) => {
-    setPending(asset);
-    setState('uploading');
-    setProgress(0);
-    setMessage(null);
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
 
-    const job = uploadFile(asset, setProgress);
-    jobRef.current = job;
-    job.promise
-      .then((file) => {
-        setState('success');
-        setPending(null);
-        setMessage(`Uploaded ${file.filename}`);
-        files.prepend(file);
-        void files.refresh();
-      })
-      .catch((error: unknown) => {
-        if (error instanceof UploadCancelledError) {
-          setState('idle');
+  const startUpload = useCallback(
+    (asset: PendingUpload) => {
+      setPending(asset);
+      setState('uploading');
+      setProgress(0);
+      setMessage(null);
+
+      const job = uploadFile(asset, setProgress);
+      jobRef.current = job;
+      job.promise
+        .then((file) => {
+          setState('success');
           setPending(null);
-          setMessage(null);
-          return;
-        }
-        setState('error');
-        setMessage(error instanceof Error ? error.message : 'The upload failed. Please try again.');
-      })
-      .finally(() => {
-        jobRef.current = null;
-      });
-  }, [files]);
+          setMessage(`Uploaded ${file.filename}`);
+          files.prepend(file);
+          void files.refresh();
+        })
+        .catch((error: unknown) => {
+          if (error instanceof UploadCancelledError) {
+            setState('idle');
+            setPending(null);
+            setMessage(null);
+            return;
+          }
+          setState('error');
+          setMessage(error instanceof Error ? error.message : 'The upload failed. Please try again.');
+        })
+        .finally(() => {
+          jobRef.current = null;
+        });
+    },
+    [files],
+  );
 
   const pickFile = useCallback(async () => {
     const result = await getDocumentAsync({
@@ -78,7 +90,14 @@ export const FilesScreen = () => {
   }, [pending, startUpload]);
 
   const renderItem = ({ item }: { item: PublicFile }) => (
-    <View style={[styles.row, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push(`/file/${item.id}`)}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
+      ]}
+    >
       <View style={styles.rowText}>
         <Text numberOfLines={1} style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>
           {item.filename}
@@ -87,7 +106,8 @@ export const FilesScreen = () => {
           {formatBytes(item.sizeBytes)} · {formatDate(item.createdAt)}
         </Text>
       </View>
-    </View>
+      <Text style={[theme.typography.body, { color: theme.colors.textMuted }]}>›</Text>
+    </Pressable>
   );
 
   return (
@@ -118,7 +138,7 @@ export const FilesScreen = () => {
       ) : null}
 
       {state === 'error' ? (
-        <View>
+        <View style={styles.retryBlock}>
           <FormError message={message} />
           <Button label="Retry upload" variant="secondary" onPress={retryUpload} />
         </View>
@@ -141,7 +161,11 @@ export const FilesScreen = () => {
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={files.refreshing} onRefresh={() => void files.refresh()} tintColor={theme.colors.primary} />
+            <RefreshControl
+              refreshing={files.refreshing}
+              onRefresh={() => void files.refresh(true)}
+              tintColor={theme.colors.primary}
+            />
           }
           onEndReachedThreshold={0.4}
           onEndReached={() => void files.loadMore()}
@@ -172,13 +196,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
+  retryBlock: { marginBottom: 12 },
   row: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  rowText: { gap: 4 },
+  rowText: { gap: 4, flex: 1 },
   list: { paddingBottom: 32 },
   empty: { textAlign: 'center', marginTop: 32 },
   loading: { marginTop: 32 },

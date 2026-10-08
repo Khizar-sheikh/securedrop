@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ApiError } from '../../services/api';
 import { filesApi } from '../../services/filesApi';
 import type { PublicFile } from '../../types/files';
@@ -22,8 +22,8 @@ export const useFileList = () => {
     return result;
   }, []);
 
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
+  const refresh = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setRefreshing(true);
     try {
       const result = await fetchPage(1);
       pageRef.current = 1;
@@ -57,11 +57,6 @@ export const useFileList = () => {
   const prepend = useCallback((file: PublicFile) => {
     setItems((previous) => [file, ...previous.filter((item) => item.id !== file.id)]);
   }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => void refresh(), 0);
-    return () => clearTimeout(timer);
-  }, [refresh]);
 
   return { items, hasMore, loading, refreshing, loadingMore, error, refresh, loadMore, prepend };
 };

@@ -357,9 +357,9 @@ Create database schema incrementally.
 - [x] Add pagination. (`page`/`pageSize` → `total`/`hasMore`; app infinite scroll, 7 tests)
 - [x] Add pull-to-refresh. (`RefreshControl` on the file list)
 - [ ] Add file search later if needed.
-- [ ] Add file details. (backend `GET /api/v1/files/:id` ready; app view pending)
-- [ ] Add delete file. (backend `DELETE /api/v1/files/:id` ready; app action pending)
-- [ ] Confirm destructive actions.
+- [x] Add file details. (`/file/[id]` screen: size, type, date, checksum)
+- [x] Add delete file. (details → `DELETE /files/:id`, returns to refreshed list)
+- [x] Confirm destructive actions. (`Alert.alert` destructive confirmation before delete)
 - [x] Prevent unauthorized file access. (non-owners get 404, no existence leak)
 - [x] Add backend ownership checks. (every query scoped by `ownerId`)
 - [x] Add audit events. (`FILE_DELETED` with actor/ip; uploads already audited)
