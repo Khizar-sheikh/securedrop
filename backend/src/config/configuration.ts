@@ -60,6 +60,10 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  RECIPIENT_SESSION_TTL?: string;
+
+  @IsOptional()
+  @IsString()
   JWT_ACCESS_TTL?: string;
 
   @IsOptional()
@@ -123,6 +127,8 @@ export interface AppConfig {
     refreshTtl: string;
     accessTtlSeconds: number;
     refreshTtlSeconds: number;
+    recipientTtl: string;
+    recipientTtlSeconds: number;
   };
   upload: {
     maxBytes: number;
@@ -161,6 +167,8 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
     refreshTtl: env.JWT_REFRESH_TTL ?? '30d',
     accessTtlSeconds: parseTtlToSeconds(env.JWT_ACCESS_TTL ?? '15m'),
     refreshTtlSeconds: parseTtlToSeconds(env.JWT_REFRESH_TTL ?? '30d'),
+    recipientTtl: env.RECIPIENT_SESSION_TTL ?? '7d',
+    recipientTtlSeconds: parseTtlToSeconds(env.RECIPIENT_SESSION_TTL ?? '7d'),
   },
   upload: {
     maxBytes: toInt(env.UPLOAD_MAX_BYTES, 100 * 1024 * 1024),

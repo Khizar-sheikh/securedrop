@@ -28,6 +28,7 @@ interface Choice<T> {
 }
 
 const EXPIRY_CHOICES: Choice<number | null>[] = [
+  { label: '15 minutes', value: 900 },
   { label: '1 hour', value: 3600 },
   { label: '24 hours', value: 86_400 },
   { label: '7 days', value: 604_800 },

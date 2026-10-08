@@ -3,6 +3,13 @@ import type { NextFunction, Request, Response } from 'express';
 
 const logger = new Logger('HTTP');
 
+const SENSITIVE_QUERY = /([?&](?:token|sessionSecret|password|accessToken|refreshToken)=)[^&#]*/gi;
+const SHARE_PATH = /(\/(?:public\/shares\/|s\/))[^/?#]+/gi;
+
+/** Share tokens and credentials must never reach the logs. */
+export const redactSecrets = (url: string): string =>
+  url.replace(SENSITIVE_QUERY, '$1***').replace(SHARE_PATH, '$1***');
+
 /**
  * Minimal access log: method, path, status, duration.
  * Skipped in tests so suites stay quiet.
@@ -17,7 +24,7 @@ export const requestLogging = (req: Request, res: Response, next: NextFunction):
 
   res.on('finish', () => {
     const durationMs = Date.now() - startedAt;
-    const line = `${req.method} ${req.originalUrl} ${res.statusCode} ${durationMs}ms`;
+    const line = `${req.method} ${redactSecrets(req.originalUrl)} ${res.statusCode} ${durationMs}ms`;
 
     if (res.statusCode >= 500) {
       logger.error(line);

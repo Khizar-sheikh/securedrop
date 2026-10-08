@@ -428,18 +428,18 @@ Allow preview/download
 
 Tasks:
 
-- [ ] Create public share endpoint.
-- [ ] Validate share token.
-- [ ] Reject malformed tokens.
-- [ ] Reject revoked shares.
-- [ ] Reject expired shares.
-- [ ] Reject exceeded access limits.
-- [ ] Create recipient session.
-- [ ] Bind session to the share.
-- [ ] Record first access.
-- [ ] Record last access.
-- [ ] Record download events.
-- [ ] Return only authorized file information.
+- [x] Create public share endpoint. (`POST /api/v1/public/shares/open`, token in body so URLs/logs stay clean)
+- [x] Validate share token. (SHA-256 lookup, raw token never stored)
+- [x] Reject malformed tokens. (format check → `SHARE_INVALID` 404, same response as unknown tokens)
+- [x] Reject revoked shares. (`SHARE_REVOKED` 410)
+- [x] Reject expired shares. (`SHARE_EXPIRED` 410)
+- [x] Reject exceeded access limits. (single conditional `updateMany` — atomic against races)
+- [x] Create recipient session. (32-byte secret returned once, only its hash stored)
+- [x] Bind session to the share. (restore verifies `session.shareId` + revocation/expiry)
+- [x] Record first access. (`recipientSession.createdAt`)
+- [x] Record last access. (`lastAccessAt` updated on every open)
+- [ ] Record download events. (Phase 9 download endpoint)
+- [x] Return only authorized file information. (no ids, owner, storage key or token)
 
 ---
 
@@ -527,44 +527,44 @@ Required behavior:
 
 Tasks:
 
-- [ ] Persist recipient session securely.
-- [ ] Restore valid recipient session.
-- [ ] Validate session server-side.
-- [ ] Verify share association.
-- [ ] Check expiration.
-- [ ] Check revocation.
-- [ ] Check access policy.
-- [ ] Allow access if valid.
-- [ ] Reject unauthorized sessions.
-- [ ] Provide a clear re-authentication path when appropriate.
+- [x] Persist recipient session securely. (32-byte secret returned once; only SHA-256 stored)
+- [x] Restore valid recipient session. (`sessionSecret` on `POST /public/shares/open`)
+- [x] Validate session server-side.
+- [x] Verify share association. (`session.shareId` must match the opened share)
+- [x] Check expiration. (session TTL capped by share expiry)
+- [x] Check revocation.
+- [ ] Check access policy. (strict binding → Phase 8; download policy → Phase 9)
+- [x] Allow access if valid. (no extra access is consumed on reopen)
+- [x] Reject unauthorized sessions. (`RECIPIENT_SESSION_INVALID` / `RECIPIENT_SESSION_EXPIRED` 401)
+- [ ] Provide a clear re-authentication path when appropriate. (recipient screen, pending)
 
 ---
 
 # 17. PHASE 11 — One-Time Shares
 
-- [ ] Add one-time share option.
-- [ ] Define exactly what "one-time" means.
-- [ ] Decide whether it means one open or one successful download.
-- [ ] Enforce the rule on the backend.
-- [ ] Atomically update access state.
-- [ ] Prevent race-condition double access.
-- [ ] Revoke/consume the share after successful use.
-- [ ] Audit the event.
-- [ ] Display clear status to owner.
+- [x] Add one-time share option. (`oneTime` in create-share DTO + `maxAccesses: 1` shortcut)
+- [x] Define exactly what "one-time" means.
+- [x] Decide whether it means one open or one successful download. (one successful open)
+- [x] Enforce the rule on the backend.
+- [x] Atomically update access state. (`consumedAt` + `accessCount` in one conditional update)
+- [x] Prevent race-condition double access. (conditional `updateMany` — loser sees count 0)
+- [x] Revoke/consume the share after successful use. (`SHARE_CONSUMED` 410 afterwards)
+- [x] Audit the event. (`SHARE_OPENED` + `RECIPIENT_SESSION_CREATED`)
+- [x] Display clear status to owner. (`Used` badge in the Shares tab)
 
 ---
 
 # 18. PHASE 12 — Expiring Shares
 
-- [ ] Add expiration selector.
-- [ ] Support minutes.
-- [ ] Support hours.
-- [ ] Support days.
-- [ ] Validate expiration server-side.
-- [ ] Reject expired access.
-- [ ] Show remaining time.
-- [ ] Handle timezone correctly.
-- [ ] Add automatic cleanup strategy.
+- [x] Add expiration selector. (15 minutes / 1 hour / 24 hours / 7 days / 30 days / Never)
+- [x] Support minutes.
+- [x] Support hours.
+- [x] Support days.
+- [x] Validate expiration server-side. (`expiresInSeconds` 60s–1y)
+- [x] Reject expired access. (`SHARE_EXPIRED` 410; expiry enforced inside the atomic claim)
+- [x] Show remaining time. (expiry label at creation, `Expires <date>` in Shares tab)
+- [x] Handle timezone correctly. (UTC stored; ISO-8601 rendered in the device timezone)
+- [ ] Add automatic cleanup strategy. (pending background cleanup)
 
 ---
 
