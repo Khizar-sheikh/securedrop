@@ -372,16 +372,16 @@ This is the core module.
 
 ## Create Share
 
-- [ ] Create share endpoint.
-- [ ] Verify file ownership.
-- [ ] Generate cryptographically secure share token.
-- [ ] Store only what is necessary.
-- [ ] Set expiration.
-- [ ] Set download permission.
-- [ ] Set access limit.
-- [ ] Set optional password.
-- [ ] Set revoked=false.
-- [ ] Create share audit event.
+- [x] Create share endpoint. (`POST /api/v1/shares`, 7 tests)
+- [x] Verify file ownership. (owner-scoped lookup → 404 for others/deleted)
+- [x] Generate cryptographically secure share token. (32 random bytes, base64url)
+- [x] Store only what is necessary. (sha256 of token; scrypt hash of optional password)
+- [x] Set expiration. (`expiresInSeconds` → `expiresAt`, 60s–1y bounds)
+- [x] Set download permission. (`allowDownload`, default true)
+- [x] Set access limit. (`maxAccesses`, 1–100000; one-time forces 1)
+- [x] Set optional password. (scrypt; only `hasPassword` exposed)
+- [x] Set revoked=false. (active on creation; `revokedAt` in every response)
+- [x] Create share audit event. (`SHARE_CREATED` with policy metadata)
 
 ## Share Configuration
 
@@ -572,13 +572,13 @@ Tasks:
 
 Owner must always be able to revoke access.
 
-- [ ] Create revoke endpoint.
-- [ ] Verify ownership.
-- [ ] Mark share revoked.
-- [ ] Invalidate active recipient sessions.
+- [x] Create revoke endpoint. (`DELETE /api/v1/shares/:id`, idempotent, 5 tests)
+- [x] Verify ownership. (owner-scoped → 404 for non-owners)
+- [x] Mark share revoked. (`revokedAt` set in a transaction)
+- [x] Invalidate active recipient sessions. (all open sessions revoked in the same transaction)
 - [ ] Reject future access.
 - [ ] Reject future downloads.
-- [ ] Audit revocation.
+- [x] Audit revocation. (`SHARE_REVOKED`, once per share)
 - [ ] Show revoked state in UI.
 
 ---
