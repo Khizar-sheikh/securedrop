@@ -1,7 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { createReadStream } from 'node:fs';
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { AppConfig } from '../config/configuration';
@@ -54,6 +58,49 @@ export class StorageService implements OnModuleInit {
 
   getBucket(): string {
     return this.bucket;
+  }
+
+  /**
+   * Streams a local temp file into private storage under a server-generated
+   * key. Credentials and endpoint stay on the server.
+   */
+  async putFile(key: string, filePath: string, sizeBytes: number, contentType: string): Promise<void> {
+    const body = createReadStream(filePath);
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: body,
+          ContentLength: sizeBytes,
+          ContentType: contentType,
+        }),
+      );
+    } finally {
+      body.destroy();
+    }
+  }
+
+  /** Returns object size, or null when the key does not exist. */
+  async headObject(key: string): Promise<{ sizeBytes: number } | null> {
+    try {
+      const result = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return { sizeBytes: result.ContentLength ?? 0 };
+    } catch (error) {
+      const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      const name = (error as { name?: string }).name;
+      if (status === 404 || name === 'NotFound') return null;
+      throw error;
+    }
+  }
+
+  /** Best-effort cleanup used when a later step fails. */
+  async deleteObject(key: string): Promise<void> {
+    try {
+      await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    } catch (error) {
+      this.logger.warn(`Could not delete object "${key}": ${(error as Error).message}`);
+    }
   }
 
   /** Maps storage failures to a safe API error. */

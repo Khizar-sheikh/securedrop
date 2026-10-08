@@ -322,19 +322,19 @@ Create database schema incrementally.
 
 ## Backend
 
-- [ ] Create upload endpoint.
-- [ ] Authenticate upload request.
-- [ ] Validate file size.
-- [ ] Validate filename.
-- [ ] Validate MIME type.
-- [ ] Generate server-side storage key.
-- [ ] Never use user filename as storage key.
-- [ ] Stream/upload file to private storage.
-- [ ] Store file metadata.
-- [ ] Calculate file checksum where appropriate.
-- [ ] Return safe file metadata.
-- [ ] Never expose internal storage credentials.
-- [ ] Never expose private storage directly.
+- [x] Create upload endpoint. (`POST /api/v1/files`, multipart, 8 tests)
+- [x] Authenticate upload request. (`AccessTokenGuard`, 401 when missing)
+- [x] Validate file size. (multer streaming limit + service check → 413)
+- [x] Validate filename. (strip path segments/control chars, bound length)
+- [x] Validate MIME type. (configurable allowlist → 415, no SVG/executables)
+- [x] Generate server-side storage key. (`${ownerId}/${serverUuid}`)
+- [x] Never use user filename as storage key. (asserted in test)
+- [x] Stream/upload file to private storage. (temp file on disk → streamed PutObject)
+- [x] Store file metadata. (Prisma `File` row; temp file removed in `finally`)
+- [x] Calculate file checksum where appropriate. (streaming sha256)
+- [x] Return safe file metadata. (presenter omits storageKey; no bucket/credentials in payload)
+- [x] Never expose internal storage credentials. (verified by asserting response has no bucket)
+- [x] Never expose private storage directly. (no URLs handed out; backend streams on request)
 
 ## App
 

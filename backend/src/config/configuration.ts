@@ -1,5 +1,6 @@
 import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
 import { parseTtlToSeconds } from '../common/ttl';
+import { DEFAULT_ALLOWED_MIME } from '../security/upload-policy';
 
 const toBool = (value: string | undefined, fallback: boolean): boolean => {
   if (value === undefined || value === '') return fallback;
@@ -70,6 +71,10 @@ export class EnvironmentVariables {
   @IsString()
   UPLOAD_MAX_BYTES?: string;
 
+  @IsOptional()
+  @IsString()
+  UPLOAD_ALLOWED_MIME?: string;
+
   // --- App behaviour ---
   @IsOptional()
   @IsIn(['error', 'warn', 'info', 'debug'])
@@ -121,6 +126,7 @@ export interface AppConfig {
   };
   upload: {
     maxBytes: number;
+    allowedMime: string[];
   };
   rateLimit: {
     max: number;
@@ -158,6 +164,11 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
   },
   upload: {
     maxBytes: toInt(env.UPLOAD_MAX_BYTES, 100 * 1024 * 1024),
+    allowedMime: (env.UPLOAD_ALLOWED_MIME ?? '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean)
+      .concat(env.UPLOAD_ALLOWED_MIME ? [] : DEFAULT_ALLOWED_MIME),
   },
   rateLimit: {
     max: toInt(env.RATE_LIMIT_MAX, 600),

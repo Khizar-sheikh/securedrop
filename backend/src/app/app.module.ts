@@ -8,6 +8,7 @@ import { AuditModule } from '../modules/audit/audit.module';
 import { SessionModule } from '../modules/sessions/session.module';
 import { HealthModule } from '../modules/health/health.module';
 import { AuthModule } from '../modules/auth/auth.module';
+import { FilesModule } from '../modules/files/files.module';
 import { AppThrottlerGuard } from '../common/app-throttler.guard';
 import { AppConfig } from '../config/configuration';
 import { APP_CONFIG } from '../config/tokens';
@@ -27,6 +28,7 @@ import { APP_CONFIG } from '../config/tokens';
     SessionModule,
     HealthModule,
     AuthModule,
+    FilesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
