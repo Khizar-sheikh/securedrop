@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
   revoked: 'Revoked',
   expired: 'Expired',
   consumed: 'Used',
-  unavailable: 'File deleted',
+  unavailable: 'Deleted',
 };
 
 const statusColor = (status: string, colors: ReturnType<typeof useTheme>['colors']): string => {
@@ -96,6 +96,7 @@ export const SharesScreen = () => {
 
   const renderBadges = (share: PublicShareListItem) => {
     const badges: string[] = [];
+    if (share.kind === 'note') badges.push('Note');
     if (share.hasPassword) badges.push('Password');
     if (share.strict) badges.push('Strict');
     if (!share.allowDownload) badges.push('No downloads');
@@ -141,10 +142,18 @@ export const SharesScreen = () => {
         <View style={styles.cardActions}>
           <Pressable
             accessibilityRole="link"
-            onPress={() => router.push({ pathname: '/file/[id]', params: { id: item.fileId } })}
+            onPress={() =>
+              item.kind === 'note' && item.noteId
+                ? router.push({ pathname: '/note/[id]', params: { id: item.noteId } })
+                : item.fileId
+                  ? router.push({ pathname: '/file/[id]', params: { id: item.fileId } })
+                  : undefined
+            }
             hitSlop={6}
           >
-            <Text style={[theme.typography.caption, { color: theme.colors.primary, fontWeight: '600' }]}>View file</Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.primary, fontWeight: '600' }]}>
+              {item.kind === 'note' ? 'View note' : 'View file'}
+            </Text>
           </Pressable>
 
           {isActive ? (
@@ -192,7 +201,7 @@ export const SharesScreen = () => {
           }
           ListEmptyComponent={
             <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
-              No share links yet. Open a file and tap “Create secure link”.
+              No share links yet. Open a file or note and tap “Create secure link”.
             </Text>
           }
         />

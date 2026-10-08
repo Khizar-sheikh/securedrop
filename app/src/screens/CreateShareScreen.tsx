@@ -52,7 +52,13 @@ const expiryLabel = (seconds: number | null): string =>
 export const CreateShareScreen = () => {
   const theme = useTheme();
   const router = useRouter();
-  const { fileId, filename } = useLocalSearchParams<{ fileId: string; filename?: string }>();
+  const { fileId, noteId, filename } = useLocalSearchParams<{
+    fileId?: string;
+    noteId?: string;
+    filename?: string;
+  }>();
+  const isNote = typeof noteId === 'string' && noteId.length > 0 && !(typeof fileId === 'string' && fileId.length > 0);
+  const targetName = filename ?? (isNote ? 'Note' : 'File');
 
   const [expiry, setExpiry] = useState<number | null>(86_400);
   const [maxAccesses, setMaxAccesses] = useState<number | null>(null);
@@ -76,10 +82,15 @@ export const CreateShareScreen = () => {
       return;
     }
 
+    if (!(typeof fileId === 'string' && fileId.length > 0) && !isNote) {
+      setError('There is nothing to share.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const share = await sharesApi.create({
-        fileId: String(fileId),
+        ...(typeof fileId === 'string' && fileId.length > 0 ? { fileId } : { noteId: String(noteId) }),
         expiresInSeconds: expiry,
         maxAccesses,
         allowDownload,
@@ -123,7 +134,7 @@ export const CreateShareScreen = () => {
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={[theme.typography.title, { color: theme.colors.text }]}>Your secure link is ready</Text>
           <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textMuted }]}>
-            {filename ?? 'File'} · Anyone with this link can request access according to the rules below.
+            {targetName} · Anyone with this link can request access according to the rules below.
           </Text>
 
           <View style={[styles.linkBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary }]}>
@@ -169,9 +180,11 @@ export const CreateShareScreen = () => {
           <Text accessibilityRole="link" onPress={() => router.back()} style={[theme.typography.body, styles.back, { color: theme.colors.primary }]}>
             ‹ Back
           </Text>
-          <Text style={[theme.typography.title, { color: theme.colors.text }]}>Share a file</Text>
+          <Text style={[theme.typography.title, { color: theme.colors.text }]}>
+            {isNote ? 'Share a note' : 'Share a file'}
+          </Text>
           <Text style={[theme.typography.body, styles.subtitle, { color: theme.colors.textMuted }]}>
-            {filename ?? 'File'}
+            {targetName}
           </Text>
 
           <FormError message={error} />

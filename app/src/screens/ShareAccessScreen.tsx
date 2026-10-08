@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { FormError } from '../components/FormError';
+import { MarkdownView } from '../components/MarkdownView';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { ApiError } from '../services/api';
@@ -185,6 +186,10 @@ export const ShareAccessScreen = () => {
     return () => clearTimeout(timer);
   }, [runInspect]);
 
+  const noteInfo = opened?.note ?? inspection?.note ?? null;
+  const isNote = noteInfo !== null;
+  const noun = isNote ? 'note' : 'file';
+
   const badgesFor = (rules: ShareRules): string[] => {
     const badges: string[] = [];
     if (rules.hasPassword) badges.push('Password');
@@ -223,7 +228,9 @@ export const ShareAccessScreen = () => {
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>SECUREDROP</Text>
-        <Text style={[theme.typography.title, styles.heading, { color: theme.colors.text }]}>Shared file</Text>
+        <Text style={[theme.typography.title, styles.heading, { color: theme.colors.text }]}>
+          {isNote ? 'Shared note' : 'Shared file'}
+        </Text>
 
         <FormError message={error} />
 
@@ -254,10 +261,10 @@ export const ShareAccessScreen = () => {
         {inspectionPhase && inspection ? (
           <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
-              A FILE HAS BEEN SHARED WITH YOU
+              A {isNote ? 'NOTE' : 'FILE'} HAS BEEN SHARED WITH YOU
             </Text>
             <Text numberOfLines={2} style={[theme.typography.body, styles.filename, { color: theme.colors.text }]}>
-              {inspection.file.filename}
+              {noteInfo ? noteInfo.title : inspection.file.filename}
             </Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
               {formatBytes(inspection.file.sizeBytes)} · {inspection.file.mimeType}
@@ -271,7 +278,7 @@ export const ShareAccessScreen = () => {
             {inspection.share.oneTime ? (
               <View style={[styles.warn, { backgroundColor: theme.colors.dangerSurface }]}>
                 <Text style={[theme.typography.caption, { color: theme.colors.danger }]}>
-                  One-time secure share — this file can only be accessed once. After successful access, the
+                  One-time secure share — this {noun} can only be accessed once. After successful access, the
                   share will expire permanently.
                 </Text>
               </View>
@@ -289,7 +296,7 @@ export const ShareAccessScreen = () => {
             ) : null}
 
             <Button
-              label={phase === 'password' ? 'Unlock file' : 'Open file'}
+              label={phase === 'password' ? `Unlock ${noun}` : `Open ${noun}`}
               loading={busy}
               disabled={phase === 'password' && password.length === 0}
               onPress={() => {
@@ -305,9 +312,11 @@ export const ShareAccessScreen = () => {
 
         {phase === 'ready' && opened ? (
           <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>FILE</Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
+              {isNote ? 'NOTE' : 'FILE'}
+            </Text>
             <Text numberOfLines={2} style={[theme.typography.body, styles.filename, { color: theme.colors.text }]}>
-              {opened.file.filename}
+              {noteInfo ? noteInfo.title : opened.file.filename}
             </Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
               {formatBytes(opened.file.sizeBytes)} · {opened.file.mimeType}
@@ -318,20 +327,43 @@ export const ShareAccessScreen = () => {
 
             {renderBadges(opened.share)}
 
+            {isNote && noteInfo && 'tags' in noteInfo && noteInfo.tags.length > 0 ? (
+              <View style={styles.badges}>
+                {noteInfo.tags.map((tag) => (
+                  <Text
+                    key={tag}
+                    style={[
+                      styles.badge,
+                      theme.typography.caption,
+                      { backgroundColor: theme.colors.surfaceVariant, color: theme.colors.textMuted },
+                    ]}
+                  >
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
             {opened.share.oneTime ? (
               <View style={[styles.warn, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <Text style={[theme.typography.caption, { color: theme.colors.text }]}>
-                  This one-time link has been used. You can still download the file from this screen.
+                  This one-time link has been used. You can still download it from this screen.
                 </Text>
+              </View>
+            ) : null}
+
+            {opened.note ? (
+              <View style={styles.noteBody}>
+                <MarkdownView content={opened.note.content} />
               </View>
             ) : null}
 
             {opened.share.allowDownload ? (
               savedUri ? (
                 <View style={styles.actions}>
-                  <Button label="Open file" onPress={() => void openSaved()} />
+                  <Button label={isNote ? 'Open .md' : 'Open file'} onPress={() => void openSaved()} />
                   <Button
-                    label="Download again"
+                    label={isNote ? 'Export .md again' : 'Download again'}
                     variant="secondary"
                     loading={downloading}
                     onPress={() => void runDownload()}
@@ -339,14 +371,14 @@ export const ShareAccessScreen = () => {
                 </View>
               ) : (
                 <Button
-                  label="Download"
+                  label={isNote ? 'Export .md' : 'Download'}
                   loading={downloading}
                   onPress={() => void runDownload()}
                 />
               )
             ) : (
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
-                Preview only — the owner has disabled downloads for this file.
+                Preview only — the owner has disabled downloads for this {noun}.
               </Text>
             )}
           </View>
@@ -367,4 +399,5 @@ const styles = StyleSheet.create({
   warn: { borderRadius: 10, padding: 12, marginTop: 4 },
   notice: { borderRadius: 10, padding: 12, marginBottom: 8 },
   actions: { gap: 8, marginTop: 4 },
+  noteBody: { marginTop: 8 },
 });

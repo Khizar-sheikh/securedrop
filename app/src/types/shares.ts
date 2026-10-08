@@ -1,6 +1,7 @@
 export interface PublicShare {
   id: string;
-  fileId: string;
+  fileId: string | null;
+  noteId: string | null;
   expiresAt: string | null;
   allowDownload: boolean;
   maxAccesses: number | null;
@@ -15,13 +16,15 @@ export interface PublicShare {
 }
 
 export interface PublicShareListItem extends PublicShare {
+  kind: 'file' | 'note';
   filename: string;
   sizeBytes: number;
   fileDeleted: boolean;
 }
 
 export interface CreateShareInput {
-  fileId: string;
+  fileId?: string;
+  noteId?: string;
   expiresInSeconds?: number | null;
   maxAccesses?: number | null;
   allowDownload?: boolean;
@@ -52,12 +55,14 @@ export interface ShareRules {
 /** Metadata-only preview returned before any access is consumed. */
 export interface ShareInspection {
   file: ShareFile;
+  note?: { id: string; title: string; tags: string[] };
   share: ShareRules;
   requiresPassword: boolean;
 }
 
 export interface OpenedShare {
   file: ShareFile;
+  note?: { id: string; title: string; tags: string[]; content: string };
   share: ShareRules;
   session: { secret: string; expiresAt: string };
 }

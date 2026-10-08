@@ -591,13 +591,13 @@ Notes are secondary to file sharing.
 - [x] Create note. (`POST /api/v1/notes`, trimmed title, normalized tags, `NOTE_CREATED` audit)
 - [x] Edit note. (`PATCH /api/v1/notes/:id`, partial update, owner-scoped → 404)
 - [x] Delete note. (soft delete + revokes the note's shares in one transaction, `NOTE_DELETED` audit)
-- [ ] Add Markdown support.
-- [ ] Add code block support.
-- [ ] Add syntax highlighting.
-- [ ] Add tags.
+- [x] Add Markdown support. (`MarkdownView` on react-native-markdown-display + Edit/Preview toggle in `NoteEditorScreen`)
+- [x] Add code block support. (custom `fence`/`code_block` rules render a themed block with a language label)
+- [x] Add syntax highlighting. (`utils/highlight.ts` regex tokenizer: keyword/string/comment/number, per-theme palette)
+- [x] Add tags. (comma-separated input in the editor, chips on list rows, `?tag=` filter; backend normalizes+dedupes)
 - [x] Attach files to notes. (`POST/DELETE /notes/:id/files`, owner-scoped, idempotent, deleted files rejected — 2 tests)
-- [ ] Share note using same share architecture.
-- [ ] Apply expiration/revocation rules to shared notes.
+- [x] Share note using same share architecture. (XOR `fileId`/`noteId` on `Share`, `kind: 'note'` in list UI, note rows in Shares, Markdown rendered in ShareAccess)
+- [x] Apply expiration/revocation rules to shared notes. (same expiry/revoke paths — 11 tests: expired 410, revoke cuts open/restore/download, one-time, password)
 
 ---
 

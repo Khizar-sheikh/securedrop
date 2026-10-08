@@ -22,6 +22,8 @@ const LABELS: Record<string, string> = {
   ACCESS_DENIED: 'Access denied',
   RECIPIENT_SESSION_CREATED: 'Link accessed',
   SESSION_CHANGED: 'Access environment changed',
+  NOTE_CREATED: 'Note created',
+  NOTE_DELETED: 'Note deleted',
 };
 
 /** Events worth highlighting: they signal something the owner should notice. */
@@ -34,8 +36,9 @@ const REASON_LABELS: Record<string, string> = {
   expired: 'The share had expired',
   session_invalid: 'The session was no longer valid',
   session_expired: 'The session had expired',
-  download_not_allowed: 'Downloads are disabled for this file',
+  download_not_allowed: 'Downloads are disabled for this share',
   file_deleted: 'The file was deleted',
+  note_deleted: 'The note was deleted',
   malformed_token: 'The link was not valid',
   unknown_token: 'The link was not valid',
 };
