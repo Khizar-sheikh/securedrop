@@ -14,6 +14,7 @@ import { isAllowedMime, normalizeMime, sanitizeFilename } from '../../security/u
 import { AppConfig } from '../../config/configuration';
 import { APP_CONFIG } from '../../config/tokens';
 import { toPublicFile } from './file.presenter';
+import { ListFilesQuery } from './dto/list-files.query';
 
 const sha256File = async (filePath: string): Promise<string> => {
   const hash = createHash('sha256');
@@ -37,12 +38,72 @@ export class FilesService {
     this.allowedMime = config.upload.allowedMime;
   }
 
+  async list(ownerId: string, query: ListFilesQuery) {
+    const where = { ownerId, deletedAt: null };
+    const [total, rows] = await Promise.all([
+      this.prisma.file.count({ where }),
+      this.prisma.file.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+    ]);
+
+    return {
+      items: rows.map(toPublicFile),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      hasMore: query.page * query.pageSize < total,
+    };
+  }
+
+  async getOwned(ownerId: string, fileId: string) {
+    const file = await this.findOwned(ownerId, fileId);
+    return toPublicFile(file);
+  }
+
+  async remove(ownerId: string, fileId: string, context: RequestContext) {
+    const file = await this.findOwned(ownerId, fileId);
+
+    await this.prisma.$transaction([
+      this.prisma.file.update({ where: { id: file.id }, data: { deletedAt: new Date() } }),
+      this.prisma.share.updateMany({
+        where: { fileId: file.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    await this.storage.deleteObject(file.storageKey);
+
+    await this.audit.record({
+      type: 'FILE_DELETED',
+      actorUserId: ownerId,
+      fileId: file.id,
+      ip: context.ip,
+      userAgent: context.userAgent,
+      metadata: { sizeBytes: file.sizeBytes, mimeType: file.mimeType },
+    });
+
+    return { id: file.id, deleted: true };
+  }
+
+  private async findOwned(ownerId: string, fileId: string) {
+    const file = await this.prisma.file.findFirst({
+      where: { id: fileId, ownerId, deletedAt: null },
+    });
+    if (!file) {
+      throw new HttpException(fail(ERROR_CODES.NOT_FOUND), 404);
+    }
+    return file;
+  }
+
   async upload(ownerId: string, file: Express.Multer.File | undefined, context: RequestContext) {
     if (!file || typeof file.path !== 'string' || file.path.length === 0) {
       throw new HttpException(fail(ERROR_CODES.VALIDATION_FAILED), 400);
     }
 
-    // Defense in depth: multer already enforced this limit while streaming.
     if (!Number.isFinite(file.size) || file.size <= 0 || file.size > this.maxBytes) {
       throw new HttpException(fail(ERROR_CODES.FILE_TOO_LARGE), 413);
     }
@@ -59,8 +120,6 @@ export class FilesService {
 
     try {
       const checksum = await sha256File(file.path);
-
-      // Server-generated key: owner id + server id, never user input.
       const fileId = randomUUID();
       const storageKey = `${ownerId}/${fileId}`;
 
@@ -85,7 +144,6 @@ export class FilesService {
           },
         });
       } catch (error) {
-        // No database row → no storage object either.
         await this.storage.deleteObject(storageKey);
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           throw new HttpException(fail(ERROR_CODES.CONFLICT), 409);

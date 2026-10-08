@@ -353,16 +353,16 @@ Create database schema incrementally.
 
 # 11. PHASE 5 — File Management
 
-- [ ] List user's files.
-- [ ] Add pagination.
+- [x] List user's files. (backend `GET /api/v1/files`, ownership-scoped; app UI follows)
+- [x] Add pagination. (`page`/`pageSize` → `total`/`hasMore`, 7 tests)
 - [ ] Add pull-to-refresh.
 - [ ] Add file search later if needed.
-- [ ] Add file details.
-- [ ] Add delete file.
+- [ ] Add file details. (backend `GET /api/v1/files/:id` ready; app view pending)
+- [ ] Add delete file. (backend `DELETE /api/v1/files/:id` ready; app action pending)
 - [ ] Confirm destructive actions.
-- [ ] Prevent unauthorized file access.
-- [ ] Add backend ownership checks.
-- [ ] Add audit events.
+- [x] Prevent unauthorized file access. (non-owners get 404, no existence leak)
+- [x] Add backend ownership checks. (every query scoped by `ownerId`)
+- [x] Add audit events. (`FILE_DELETED` with actor/ip; uploads already audited)
 
 ---
 
