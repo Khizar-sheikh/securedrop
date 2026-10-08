@@ -45,7 +45,7 @@ describe('public share access', () => {
     return { token: login.body.data.accessToken, userId: login.body.data.user.id };
   };
 
-  const uploadFile = async (account: Account, name = 'report.txt'): Promise<any> => {
+  const uploadFile = async (account: Account, name = 'report.txt'): Promise<{ id: string; sizeBytes: number; checksum: string }> => {
     const res = await request(app.getHttpServer())
       .post(apiUrl('files'))
       .set('Authorization', `Bearer ${account.token}`)

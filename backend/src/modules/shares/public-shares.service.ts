@@ -107,7 +107,6 @@ export class PublicSharesService {
     }
 
     const secret = generateToken(32);
-    const now = new Date();
     const sessionExpiry = this.sessionExpiry(share.expiresAt);
 
     await this.prisma.recipientSession.create({

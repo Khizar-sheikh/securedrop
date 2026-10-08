@@ -104,6 +104,19 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   AUTH_FAIL_WINDOW?: string;
+
+  // --- Background cleanup ---
+  @IsOptional()
+  @IsIn(['true', 'false', '1', '0'])
+  CLEANUP_ENABLED?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  CLEANUP_INTERVAL_MS?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  AUDIT_RETENTION_DAYS?: string;
 }
 
 export interface AppConfig {
@@ -141,6 +154,11 @@ export interface AppConfig {
   auth: {
     maxFailedAttempts: number;
     failWindowSeconds: number;
+  };
+  cleanup: {
+    enabled: boolean;
+    intervalMs: number;
+    auditRetentionDays: number;
   };
   logLevel: 'error' | 'warn' | 'info' | 'debug';
   corsOrigins: string[];
@@ -185,6 +203,11 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
   auth: {
     maxFailedAttempts: toInt(env.AUTH_MAX_FAILED_ATTEMPTS, 10),
     failWindowSeconds: parseTtlToSeconds(env.AUTH_FAIL_WINDOW ?? '15m'),
+  },
+  cleanup: {
+    enabled: toBool(env.CLEANUP_ENABLED, true),
+    intervalMs: toInt(env.CLEANUP_INTERVAL_MS, 60 * 60 * 1000),
+    auditRetentionDays: toInt(env.AUDIT_RETENTION_DAYS, 180),
   },
   logLevel: (env.LOG_LEVEL ?? 'info') as AppConfig['logLevel'],
   corsOrigins: (env.CORS_ORIGINS ?? '').split(',').filter(Boolean),

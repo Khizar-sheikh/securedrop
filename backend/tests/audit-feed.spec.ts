@@ -43,7 +43,7 @@ describe('owner activity feed', () => {
     return { token: login.body.data.accessToken, userId: login.body.data.user.id };
   };
 
-  const uploadFile = async (account: Account, name = 'resume.txt'): Promise<any> => {
+  const uploadFile = async (account: Account, name = 'resume.txt'): Promise<{ id: string }> => {
     const res = await request(app.getHttpServer())
       .post(apiUrl('files'))
       .set('Authorization', `Bearer ${account.token}`)

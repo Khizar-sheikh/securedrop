@@ -137,7 +137,7 @@ export class AuthService {
     };
   }
 
-  async refresh(dto: RefreshDto, context: RequestContext): Promise<SessionResponse> {
+  async refresh(dto: RefreshDto, _context: RequestContext): Promise<SessionResponse> {
     // Single-use: the old token is consumed atomically, so it cannot be replayed.
     const session = await this.sessions.consume(dto.refreshToken);
     if (!session) {

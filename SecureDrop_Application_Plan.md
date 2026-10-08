@@ -564,7 +564,7 @@ Tasks:
 - [x] Reject expired access. (`SHARE_EXPIRED` 410; expiry enforced inside the atomic claim)
 - [x] Show remaining time. (expiry label at creation, `Expires <date>` in Shares tab)
 - [x] Handle timezone correctly. (UTC stored; ISO-8601 rendered in the device timezone)
-- [ ] Add automatic cleanup strategy. (pending background cleanup)
+- [x] Add automatic cleanup strategy. (hourly `CleanupService`: expired/revoked recipient sessions + audit events past 180-day retention; Redis TTLs self-clean; expired shares kept as history)
 
 ---
 
