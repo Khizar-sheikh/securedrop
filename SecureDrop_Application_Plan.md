@@ -695,13 +695,13 @@ Recent
 
 UX rules:
 
-- [ ] Upload should be immediately accessible.
-- [ ] File type should be visually recognizable.
-- [ ] Show useful metadata.
-- [ ] Avoid clutter.
-- [ ] Use skeleton loading.
-- [ ] Handle empty state.
-- [ ] Handle offline state.
+- [x] Upload should be immediately accessible. (Upload button always in header: pick → upload → done)
+- [x] File type should be visually recognizable. (emoji type icon per row, mime-aware)
+- [x] Show useful metadata. (size · upload date)
+- [x] Avoid clutter. (single-column cards, one primary action per screen)
+- [x] Use skeleton loading. (placeholder rows on first load instead of a bare spinner)
+- [x] Handle empty state. ("No files yet. Tap Upload to add one.")
+- [x] Handle offline state. (offline card + Try again; offline-aware empty state)
 
 ---
 
@@ -854,13 +854,13 @@ the share will expire permanently.
 
 Every screen must have:
 
-- [ ] Loading state.
-- [ ] Empty state.
-- [ ] Error state.
-- [ ] Retry state.
-- [ ] Offline state where relevant.
-- [ ] Success feedback.
-- [ ] Destructive-action confirmation.
+- [x] Loading state. (skeletons on Files, spinners on Shares/Activity/details, auth gate)
+- [x] Empty state. ("No files yet", "No shares yet", "No activity yet")
+- [x] Error state. (FormError everywhere; share access has a dedicated error phase)
+- [x] Retry state. ("Try again" offline card, "Retry upload", share access retry, pull-to-refresh)
+- [x] Offline state where relevant. (Files offline card; auth keeps existing session offline-tolerant)
+- [x] Success feedback. (upload success card, "Copied" feedback, download saved message)
+- [x] Destructive-action confirmation. (Alert.alert confirm on file delete and share revoke)
 
 Never leave the user staring at a blank screen.
 
@@ -868,15 +868,15 @@ Never leave the user staring at a blank screen.
 
 # 31. UX Performance Rules
 
-- [ ] Use pagination.
-- [ ] Avoid loading unnecessary files.
+- [x] Use pagination. (files list page/pageSize + infinite scroll)
+- [x] Avoid loading unnecessary files. (list/inspect endpoints are metadata-only)
 - [ ] Cache safe metadata.
-- [ ] Use optimistic UI only where safe.
-- [ ] Show upload progress.
-- [ ] Cancel requests where possible.
-- [ ] Avoid blocking the UI during uploads.
-- [ ] Compress thumbnails/previews where appropriate.
-- [ ] Never download an entire file merely to display metadata.
+- [x] Use optimistic UI only where safe. (uploaded file prepended immediately, then refreshed)
+- [x] Show upload progress. (percentage + ProgressBar during upload)
+- [x] Cancel requests where possible. (upload cancel button; apiRequest supports AbortSignal)
+- [x] Avoid blocking the UI during uploads. (async XHR upload, list stays interactive)
+- [ ] Compress thumbnails/previews where appropriate. (no thumbnails yet)
+- [x] Never download an entire file merely to display metadata. (details/inspect never fetch bytes)
 
 ---
 
@@ -884,40 +884,40 @@ Never leave the user staring at a blank screen.
 
 ## Authentication
 
-- [ ] Strong password hashing.
-- [ ] Secure session handling.
-- [ ] Rate limiting.
-- [ ] Input validation.
-- [ ] Account status checks.
+- [x] Strong password hashing. (scrypt N=16384, r=8, p=1, 16-byte salt, 64-byte key, constant-time compare)
+- [x] Secure session handling. (15-min access JWT + single-use refresh rotation in Redis; recipient sessions stored as SHA-256)
+- [x] Rate limiting. (global throttler 600 req/min + per-email lockout after 10 failures / 15 min)
+- [x] Input validation. (class-validator DTOs, whitelist + forbidNonWhitelisted, body size caps)
+- [x] Account status checks. (`status !== 'ACTIVE'` → `ACCOUNT_DISABLED` 403, checked after the password)
 
 ## Authorization
 
-- [ ] Verify ownership on every protected operation.
-- [ ] Never trust IDs from the client.
-- [ ] Prevent IDOR.
-- [ ] Verify share ownership.
-- [ ] Verify recipient session.
+- [x] Verify ownership on every protected operation. (owner-scoped queries; non-owners get 404)
+- [x] Never trust IDs from the client. (ids are always resolved within the caller's scope)
+- [x] Prevent IDOR. (tested: cross-user file/share access → 404)
+- [x] Verify share ownership. (list/revoke scoped to `ownerId`)
+- [x] Verify recipient session. (session ↔ share binding checked on every reopen and download)
 
 ## File Security
 
-- [ ] Private storage.
-- [ ] Server-generated storage keys.
-- [ ] Validate uploads.
-- [ ] Restrict file size.
-- [ ] Restrict dangerous file handling.
-- [ ] Never expose storage credentials.
-- [ ] Short-lived download authorization.
+- [x] Private storage. (private MinIO bucket; no presigned or public URLs ever issued)
+- [x] Server-generated storage keys. (`ownerId/uuid` — the client filename is never part of the key)
+- [x] Validate uploads. (MIME allowlist, filename sanitization, SHA-256 checksum)
+- [x] Restrict file size. (413 `FILE_TOO_LARGE` via `UPLOAD_MAX_BYTES`)
+- [x] Restrict dangerous file handling. (no SVG/executables; downloads served as `octet-stream` + `attachment` + `nosniff`)
+- [x] Never expose storage credentials. (credentials stay server-side; `storageKey` omitted from responses — tested)
+- [x] Short-lived download authorization. (recipient session credential against a single POST endpoint)
 
 ## Share Security
 
-- [ ] Cryptographically secure tokens.
-- [ ] Expiration.
-- [ ] Revocation.
-- [ ] Access limits.
-- [ ] Recipient session binding.
-- [ ] IP as security signal.
-- [ ] Audit events.
-- [ ] Replay protection where required.
+- [x] Cryptographically secure tokens. (32 random bytes, base64url; only SHA-256 is stored)
+- [x] Expiration. (server-validated 60s–1y, enforced on open and download)
+- [x] Revocation. (cascades to recipient sessions; rejected on open and download)
+- [x] Access limits. (atomic conditional claim — parallel opens cannot exceed the limit)
+- [x] Recipient session binding. (session ↔ share; strict mode also binds the access environment)
+- [x] IP as security signal. (recorded and change-audited; never the sole authorization factor)
+- [x] Audit events. (append-only `AuditEvent` trail + owner Activity feed)
+- [x] Replay protection where required. (refresh tokens rotate and are single-use; recipient session secrets are intentionally reusable within their lifetime)
 
 ---
 

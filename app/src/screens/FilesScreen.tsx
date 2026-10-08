@@ -11,6 +11,7 @@ import { UploadCancelledError, uploadFile, type PickableAsset, type UploadJob } 
 import { useTheme } from '../theme';
 import type { PublicFile } from '../types/files';
 import { formatBytes, formatDate } from '../utils/format';
+import { fileTypeIcon } from '../utils/fileType';
 
 interface PendingUpload extends PickableAsset {
   size?: number;
@@ -25,6 +26,7 @@ export const FilesScreen = () => {
   const { refresh } = files;
 
   const [pending, setPending] = useState<PendingUpload | null>(null);
+  const [uploaded, setUploaded] = useState<PublicFile | null>(null);
   const [state, setState] = useState<UploadState>('idle');
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export const FilesScreen = () => {
         .then((file) => {
           setState('success');
           setPending(null);
+          setUploaded(file);
           setMessage(`Uploaded ${file.filename}`);
           files.prepend(file);
           void files.refresh();
@@ -89,6 +92,22 @@ export const FilesScreen = () => {
     if (pending) startUpload(pending);
   }, [pending, startUpload]);
 
+  const offline = files.errorCode === 'NETWORK_ERROR' || files.errorCode === 'TIMEOUT';
+
+  const dismissSuccess = useCallback(() => {
+    setState('idle');
+    setUploaded(null);
+    setMessage(null);
+  }, []);
+
+  const shareUploaded = useCallback(() => {
+    if (!uploaded) return;
+    router.push({
+      pathname: '/share/create',
+      params: { fileId: uploaded.id, filename: uploaded.filename },
+    });
+  }, [router, uploaded]);
+
   const renderItem = ({ item }: { item: PublicFile }) => (
     <Pressable
       accessibilityRole="button"
@@ -98,6 +117,7 @@ export const FilesScreen = () => {
         { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, opacity: pressed ? 0.85 : 1 },
       ]}
     >
+      <Text style={styles.rowIcon}>{fileTypeIcon(item.filename, item.mimeType)}</Text>
       <View style={styles.rowText}>
         <Text numberOfLines={1} style={[theme.typography.body, { color: theme.colors.text, fontWeight: '600' }]}>
           {item.filename}
@@ -147,13 +167,39 @@ export const FilesScreen = () => {
       {state === 'success' && message ? (
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.success }]}>
           <Text style={[theme.typography.body, { color: theme.colors.success }]}>{message}</Text>
+          <Button label="Create secure link" onPress={shareUploaded} />
+          <Pressable accessibilityRole="button" onPress={dismissSuccess} hitSlop={8}>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, fontWeight: '600' }]}>Done</Text>
+          </Pressable>
         </View>
       ) : null}
 
-      <FormError message={files.error} />
+      {offline ? (
+        <View style={[styles.card, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.border }]}>
+          <Text style={[theme.typography.body, { color: theme.colors.text }]}>
+            You&apos;re offline. Your files will appear when you reconnect.
+          </Text>
+          <Button label="Try again" variant="secondary" onPress={() => void files.refresh()} />
+        </View>
+      ) : (
+        <FormError message={files.error} />
+      )}
 
       {files.loading ? (
-        <ActivityIndicator style={styles.loading} color={theme.colors.primary} />
+        <View style={styles.list}>
+          {[0, 1, 2].map((index) => (
+            <View
+              key={index}
+              style={[styles.row, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+            >
+              <Text style={styles.rowIcon}>📄</Text>
+              <View style={styles.rowText}>
+                <View style={[styles.skeletonLine, { width: '65%', backgroundColor: theme.colors.border }]} />
+                <View style={[styles.skeletonLine, { width: '40%', backgroundColor: theme.colors.border }]} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : (
         <FlatList
           data={files.items}
@@ -171,7 +217,7 @@ export const FilesScreen = () => {
           onEndReached={() => void files.loadMore()}
           ListEmptyComponent={
             <Text style={[theme.typography.body, styles.empty, { color: theme.colors.textMuted }]}>
-              No files yet. Tap Upload to add one.
+              {offline ? 'Files will show up once you are back online.' : 'No files yet. Tap Upload to add one.'}
             </Text>
           }
           ListFooterComponent={files.loadingMore ? <ActivityIndicator color={theme.colors.primary} /> : null}
@@ -208,7 +254,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowText: { gap: 4, flex: 1 },
+  rowIcon: { fontSize: 22, marginRight: 4 },
+  skeletonLine: { height: 12, borderRadius: 6, marginBottom: 6 },
   list: { paddingBottom: 32 },
   empty: { textAlign: 'center', marginTop: 32 },
-  loading: { marginTop: 32 },
 });

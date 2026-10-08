@@ -15,6 +15,7 @@ export const useFileList = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const pageRef = useRef(1);
 
   const fetchPage = useCallback(async (page: number) => {
@@ -30,8 +31,10 @@ export const useFileList = () => {
       setItems(result.items);
       setHasMore(result.hasMore);
       setError(null);
+      setErrorCode(null);
     } catch (caught) {
       setError(messageOf(caught));
+      setErrorCode(caught instanceof ApiError ? caught.code : 'UNKNOWN');
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -47,8 +50,10 @@ export const useFileList = () => {
       setItems((previous) => [...previous, ...result.items]);
       setHasMore(result.hasMore);
       setError(null);
+      setErrorCode(null);
     } catch (caught) {
       setError(messageOf(caught));
+      setErrorCode(caught instanceof ApiError ? caught.code : 'UNKNOWN');
     } finally {
       setLoadingMore(false);
     }
@@ -58,5 +63,16 @@ export const useFileList = () => {
     setItems((previous) => [file, ...previous.filter((item) => item.id !== file.id)]);
   }, []);
 
-  return { items, hasMore, loading, refreshing, loadingMore, error, refresh, loadMore, prepend };
+  return {
+    items,
+    hasMore,
+    loading,
+    refreshing,
+    loadingMore,
+    error,
+    errorCode,
+    refresh,
+    loadMore,
+    prepend,
+  };
 };
