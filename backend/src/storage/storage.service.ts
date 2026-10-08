@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { createReadStream } from 'node:fs';
+import type { Readable } from 'node:stream';
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -91,6 +93,26 @@ export class StorageService implements OnModuleInit {
       const name = (error as { name?: string }).name;
       if (status === 404 || name === 'NotFound') return null;
       throw error;
+    }
+  }
+
+  /**
+   * Opens a private object for server-side streaming. The caller pipes it to
+   * the client; no storage URL or credential is ever shared.
+   */
+  async getObjectStream(key: string): Promise<{ body: Readable }> {
+    try {
+      const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      if (!result.Body) throw new Error('empty object body');
+      return { body: result.Body as Readable };
+    } catch (error) {
+      const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status === 404) {
+        this.logger.warn(`object missing for key ${key}`);
+        throw StorageService.failure();
+      }
+      this.logger.warn(`could not read object: ${(error as Error).message}`);
+      throw StorageService.failure();
     }
   }
 

@@ -167,6 +167,29 @@ describe('public share access', () => {
     expect(third.body.error.code).toBe(ERROR_CODES.SHARE_ACCESS_LIMIT_REACHED);
   });
 
+  it('never lets parallel opens exceed the access limit', async () => {
+    const account = await createAccount();
+    const file = await uploadFile(account);
+    const share = await createShare(account, file.id, { maxAccesses: 3 });
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => open({ token: share.token })),
+    );
+
+    const allowed = results.filter((res) => res.status === HttpStatus.OK);
+    const limited = results.filter(
+      (res) =>
+        res.status === HttpStatus.GONE &&
+        res.body.error.code === ERROR_CODES.SHARE_ACCESS_LIMIT_REACHED,
+    );
+
+    expect(allowed).toHaveLength(3);
+    expect(allowed.length + limited.length).toBe(results.length);
+
+    const stored = await prisma.share.findUnique({ where: { id: share.id } });
+    expect(stored!.accessCount).toBe(3);
+  });
+
   it('requires then verifies the share password', async () => {
     const account = await createAccount();
     const file = await uploadFile(account);

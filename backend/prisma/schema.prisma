@@ -64,6 +64,7 @@ model Share {
   allowDownload  Boolean  @default(true)
   maxAccesses    Int? // null = unlimited
   accessCount    Int      @default(0)
+  downloadCount  Int      @default(0)
   passwordHash   String? // optional share password (salted hash)
   oneTime        Boolean  @default(false)
   strict         Boolean  @default(false) // stricter recipient session binding

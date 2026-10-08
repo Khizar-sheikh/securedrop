@@ -438,7 +438,7 @@ Tasks:
 - [x] Bind session to the share. (restore verifies `session.shareId` + revocation/expiry)
 - [x] Record first access. (`recipientSession.createdAt`)
 - [x] Record last access. (`lastAccessAt` updated on every open)
-- [ ] Record download events. (Phase 9 download endpoint)
+- [x] Record download events. (`SHARE_DOWNLOADED` with session, IP, UA)
 - [x] Return only authorized file information. (no ids, owner, storage key or token)
 
 ---
@@ -472,13 +472,13 @@ and therefore receive a different IP.
 
 Therefore:
 
-- [ ] Record IP.
-- [ ] Do not use IP as the sole authorization mechanism.
-- [ ] Detect significant IP changes.
-- [ ] Define behavior for IP changes.
-- [ ] Use session binding.
-- [ ] Avoid unnecessarily aggressive blocking.
-- [ ] Require re-authentication when security policy requires it.
+- [x] Record IP. (`recipientSession.ip`, refreshed on each open/download)
+- [x] Do not use IP as the sole authorization mechanism. (session secret always required; IP is only a signal)
+- [x] Detect significant IP changes. (compared on session restore and download)
+- [x] Define behavior for IP changes. (strict → `REAUTHENTICATION_REQUIRED` + `SESSION_CHANGED` audit; normal → accept, re-record IP, audit)
+- [x] Use session binding. (session ↔ share, plus strict environment binding)
+- [x] Avoid unnecessarily aggressive blocking. (only strict shares challenge; normal shares keep working across IP changes)
+- [x] Require re-authentication when security policy requires it. (401 `REAUTHENTICATION_REQUIRED` on strict + change)
 
 ---
 
@@ -506,16 +506,16 @@ File download
 
 Tasks:
 
-- [ ] Create download endpoint.
-- [ ] Validate recipient session.
-- [ ] Validate share.
-- [ ] Check download permission.
-- [ ] Check expiration.
-- [ ] Check access limit.
-- [ ] Generate short-lived storage authorization.
-- [ ] Log download.
-- [ ] Increment access/download counters according to policy.
-- [ ] Return file safely.
+- [x] Create download endpoint. (`POST /api/v1/public/shares/download`, streams from private storage)
+- [x] Validate recipient session.
+- [x] Validate share.
+- [x] Check download permission. (`DOWNLOAD_NOT_ALLOWED` 403)
+- [x] Check expiration.
+- [x] Check access limit. (consumed/limit state enforced; the session already holds its access slot)
+- [x] Generate short-lived storage authorization. (server-held credentials sign the `GetObject`; the recipient's short-lived credential is the session — no URL is ever issued)
+- [x] Log download. (`SHARE_DOWNLOADED`, `ACCESS_DENIED` with reason)
+- [x] Increment access/download counters according to policy. (`downloadCount++`, `lastAccessAt`)
+- [x] Return file safely. (`application/octet-stream` + `attachment` + `nosniff` + `no-store`)
 
 ---
 
@@ -533,7 +533,7 @@ Tasks:
 - [x] Verify share association. (`session.shareId` must match the opened share)
 - [x] Check expiration. (session TTL capped by share expiry)
 - [x] Check revocation.
-- [ ] Check access policy. (strict binding → Phase 8; download policy → Phase 9)
+- [x] Check access policy. (strict environment binding + `allowDownload`/expiration/limit on download)
 - [x] Allow access if valid. (no extra access is consumed on reopen)
 - [x] Reject unauthorized sessions. (`RECIPIENT_SESSION_INVALID` / `RECIPIENT_SESSION_EXPIRED` 401)
 - [ ] Provide a clear re-authentication path when appropriate. (recipient screen, pending)
@@ -576,8 +576,8 @@ Owner must always be able to revoke access.
 - [x] Verify ownership. (owner-scoped → 404 for non-owners)
 - [x] Mark share revoked. (`revokedAt` set in a transaction)
 - [x] Invalidate active recipient sessions. (all open sessions revoked in the same transaction)
-- [ ] Reject future access. (pending public share endpoint, Phase 7)
-- [ ] Reject future downloads. (pending download endpoint, Phase 9)
+- [x] Reject future access. (410 `SHARE_REVOKED` on open — tested)
+- [x] Reject future downloads. (410 `SHARE_REVOKED` on download — tested)
 - [x] Audit revocation. (`SHARE_REVOKED`, once per share)
 - [x] Show revoked state in UI. (status badge + revoke action in Shares tab)
 
@@ -957,37 +957,37 @@ Do not wait until the end.
 
 ## Unit Tests
 
-- [ ] Token generation.
-- [ ] Share expiration.
-- [ ] Access limit.
-- [ ] Revocation.
-- [ ] Ownership checks.
-- [ ] Session validation.
+- [x] Token generation. (`tokens.spec.ts`)
+- [x] Share expiration. (`ttl.spec.ts` + expiry rejection suites)
+- [x] Access limit. (sequential + 8-way parallel claim test)
+- [x] Revocation. (revoke suite + open/download rejection)
+- [x] Ownership checks. (files list/details/delete suites)
+- [x] Session validation. (refresh rotation + recipient restore suites)
 
 ## Integration Tests
 
-- [ ] Register.
-- [ ] Login.
-- [ ] Upload.
-- [ ] Create share.
-- [ ] Open share.
-- [ ] Download.
-- [ ] Reopen share.
-- [ ] Revoke share.
-- [ ] Expire share.
+- [x] Register.
+- [x] Login.
+- [x] Upload.
+- [x] Create share.
+- [x] Open share.
+- [x] Download.
+- [x] Reopen share.
+- [x] Revoke share.
+- [x] Expire share.
 
 ## Security Tests
 
-- [ ] Invalid token.
-- [ ] Expired token.
-- [ ] Revoked token.
-- [ ] Wrong user.
-- [ ] Wrong session.
-- [ ] Unauthorized download.
-- [ ] IDOR attempt.
-- [ ] Replayed request.
-- [ ] Access-limit race condition.
-- [ ] Rate-limit behavior.
+- [x] Invalid token.
+- [x] Expired token.
+- [x] Revoked token.
+- [x] Wrong user.
+- [x] Wrong session.
+- [x] Unauthorized download.
+- [x] IDOR attempt.
+- [x] Replayed request. (refresh token replay → `SESSION_INVALID`)
+- [x] Access-limit race condition. (parallel opens cannot exceed `maxAccesses`)
+- [x] Rate-limit behavior. (per-email lockout + global throttler)
 
 ---
 
