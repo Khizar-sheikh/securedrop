@@ -159,6 +159,10 @@ npm run prisma:generate --workspace backend   # generate Prisma client
 npm run prisma:deploy --workspace backend     # apply migrations
 ```
 
+> ⚠️ **Windows:** stop the backend first (`Ctrl+C`, or the running `npm run backend`).
+> While it runs, the Prisma query-engine DLL is locked and `prisma generate` fails with
+> `EPERM: rename … query_engine-windows.dll.node`.
+
 ### 5. Backend API
 
 ```bash
