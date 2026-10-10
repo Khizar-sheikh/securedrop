@@ -544,6 +544,7 @@ Record of verified work, newest context last. Checkboxes above are only marked a
 - Backend fixes: share-password brute-force lockout (Redis, 5 fails / 15 min per share+IP, audited, `429 RATE_LIMITED`); global security headers + `Cache-Control: no-store` on all API responses; upload content sniffing (image magic bytes, HTML/SVG markup rejected in text files, `415`); unknown-share-token timing equalization (dummy scrypt on 404 path).
 - Website fixes: hardening headers on every route (nosniff, DENY, no-referrer, COOP, Permissions-Policy); production refresh cookie upgraded to `__Host-sd_refresh` (Path=/, Secure) with dual-name reads and path-aware clearing.
 - Verified: 2 new backend suites (`security-headers`, `share-password-lockout`) + sniff cases in `files-upload` — full suite now 27 suites / 163 tests green; lint/typecheck/build clean on both workspaces; headers confirmed live on `:3000` and `:3001`.
+- Deferred-item follow-up (same day): deny-all CSP on API + scoped production CSP on website (App Router keeps `'unsafe-inline'` for scripts — documented); opt-in HSTS via `ENABLE_HSTS`; zip/tar archive expansion checks (`UPLOAD_MAX_UNCOMPRESSED_BYTES`, Zip64 refused); per-user concurrent upload cap (`UPLOAD_MAX_CONCURRENT`). New suites `archive-policy`, `upload-concurrency` — full suite now 29 suites / 177 tests green.
 
 ### Still open (manual verification, intentionally not checked off)
 

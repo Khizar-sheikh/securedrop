@@ -145,7 +145,9 @@ export interface AppConfig {
   };
   upload: {
     maxBytes: number;
-    allowedMime: string[];
+    maxUncompressedBytes: number;
+    maxConcurrentPerUser: number;
+    allowedMime: readonly string[];
   };
   rateLimit: {
     max: number;
@@ -194,6 +196,8 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
   },
   upload: {
     maxBytes: toInt(env.UPLOAD_MAX_BYTES, 100 * 1024 * 1024),
+    maxUncompressedBytes: toInt(env.UPLOAD_MAX_UNCOMPRESSED_BYTES, 1024 * 1024 * 1024),
+    maxConcurrentPerUser: toInt(env.UPLOAD_MAX_CONCURRENT, 3),
     allowedMime: (env.UPLOAD_ALLOWED_MIME ?? '')
       .split(',')
       .map((entry) => entry.trim().toLowerCase())

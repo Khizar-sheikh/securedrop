@@ -200,4 +200,28 @@ describe('POST /files (upload)', () => {
       .expect(201);
     expect(res.body.data.mimeType).toBe('image/png');
   });
+
+  it('rejects a zip archive whose declared expansion exceeds the cap', async () => {
+    // Crafted central directory claims a 2 GB payload in a ~70-byte file
+    // (default UPLOAD_MAX_UNCOMPRESSED_BYTES is 1 GB).
+    const cd = Buffer.alloc(46 + 5);
+    Buffer.from([0x50, 0x4b, 0x01, 0x02]).copy(cd, 0);
+    cd.writeUInt32LE(2 * 1024 * 1024 * 1024, 24);
+    cd.writeUInt16LE(5, 28);
+    cd.write('a.txt', 46, 'ascii');
+    const local = Buffer.from('x');
+    const eocd = Buffer.alloc(22);
+    Buffer.from([0x50, 0x4b, 0x05, 0x06]).copy(eocd, 0);
+    eocd.writeUInt16LE(1, 10);
+    eocd.writeUInt32LE(cd.length, 12);
+    eocd.writeUInt32LE(local.length, 16);
+    const zip = Buffer.concat([local, cd, eocd]);
+
+    const res = await request(app.getHttpServer())
+      .post(apiUrl('files'))
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', zip, { filename: 'bomb.zip', contentType: 'application/zip' })
+      .expect(413);
+    expect(res.body.error.code).toBe('FILE_TOO_LARGE');
+  });
 });

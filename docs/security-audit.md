@@ -2,7 +2,7 @@
 
 Date: 2026-10-10 · Scope: backend API (`backend/`), website (`web/`), deployment posture.
 Method: manual review of auth, share, upload, download, admin, and cookie flows against common web/API threats (brute force, IDOR, XSS, CSRF, clickjacking, header leaks, MIME confusion, race conditions, enumeration, timing).
-Verification: backend 27 suites / 163 tests green (new: `security-headers`, `share-password-lockout`, sniff cases in `files-upload`); backend + web `tsc --noEmit` and ESLint clean; web production build clean; headers confirmed live on `:3000` and `:3001` via curl.
+Verification: backend 29 suites / 177 tests green (new: `security-headers`, `share-password-lockout`, `archive-policy`, `upload-concurrency`, sniff cases in `files-upload`); backend + web `tsc --noEmit` and ESLint clean; web production build clean; headers confirmed live on `:3000` and `:3001` via curl.
 
 Legend: `[x]` fixed + verified by test · `[x]*` fixed + verified by test with accepted tradeoff documented · `[ ]` accepted risk (justified) · `[ ]*` deferred (follow-up required).
 
@@ -53,7 +53,7 @@ Legend: `[x]` fixed + verified by test · `[x]*` fixed + verified by test with a
 
 ## DEFERRED
 
-- [ ]* **Content-Security-Policy** — needs nonce plumbing through the Next App Router (middleware-injected nonce) to be meaningful; a weak hash-less CSP would give false assurance. Follow-up ticket.
-- [ ]* **HSTS** — enable only once TLS is confirmed on the deployment target (`Strict-Transport-Security` over plain HTTP is ignored/harmful).
-- [ ]* **Magic-byte sniffing for archives** — zip/7z/tar polyglot analysis out of scope; downloads are attachment+octet-stream mitigated.
-- [ ]* **Per-user concurrent upload cap** — revisit with real abuse data.
+- [x] **Content-Security-Policy** — shipped in two forms: (1) API responses get a deny-all CSP (`default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`) — nothing is ever loaded by the API; (2) website production responses get `default-src 'self'` with script/img/font/connect scoped (connect includes only the configured API origin). Full nonce-based CSP remains incompatible with the App Router's static inline bootstrap + PPR shells (would force every page dynamic); `'unsafe-inline'` for scripts is therefore retained and documented. Dev/HMR is exempt (needs eval + websockets).
+- [x] **HSTS** — implemented as opt-in: `ENABLE_HSTS=true` makes both the API and the website send `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Off by default so local HTTP development is unaffected; flip it on the deployment once TLS is live (see deployment checklist).
+- [x] **Archive expansion (zip-bomb) analysis** — header-only checks for zip (central-directory uncompressed sizes summed, Zip64 placeholders refused) and tar (octal size fields), rejecting anything over `UPLOAD_MAX_UNCOMPRESSED_BYTES` (default 1 GB) with `413 FILE_TOO_LARGE`. Gzip/7z have no cheap header-only total and are skipped (never extracted server-side; downloads are octet-stream attachments). Verified by `tests/archive-policy.spec.ts` + an integration case in `files-upload`.
+- [x] **Per-user concurrent upload cap** — Redis slot counter per owner (`UPLOAD_MAX_CONCURRENT`, default 3, 5-min crash-recovery TTL); excess uploads answer `429 RATE_LIMITED`; slot released in a `finally` even on failures. Verified by `tests/upload-concurrency.spec.ts`.

@@ -37,4 +37,24 @@ describe('security headers', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.headers['cache-control']).toBe('no-store');
   });
+
+  it('sets a deny-all CSP on API responses', async () => {
+    const res = await request(app.getHttpServer()).get(apiUrl('health')).expect(200);
+    expect(res.headers['content-security-policy']).toBe(
+      "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    );
+  });
+
+  it('omits HSTS unless ENABLE_HSTS is set, then sends it', async () => {
+    const before = await request(app.getHttpServer()).get(apiUrl('health')).expect(200);
+    expect(before.headers['strict-transport-security']).toBeUndefined();
+
+    process.env.ENABLE_HSTS = 'true';
+    const after = await request(app.getHttpServer()).get(apiUrl('health')).expect(200);
+    delete process.env.ENABLE_HSTS;
+
+    expect(after.headers['strict-transport-security']).toBe(
+      'max-age=31536000; includeSubDomains',
+    );
+  });
 });

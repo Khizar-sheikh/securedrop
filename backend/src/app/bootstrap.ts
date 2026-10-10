@@ -17,7 +17,9 @@ export const apiUrl = (path: string): string =>
 /**
  * Defense-in-depth headers on every response: no MIME sniffing, no framing,
  * no referrer leakage (share tokens live in request bodies/paths), no plugin
- * content. API responses are never cacheable — several of them carry tokens.
+ * content, and a deny-all CSP (the API serves JSON only — nothing to load).
+ * API responses are never cacheable — several of them carry tokens.
+ * HSTS is opt-in via ENABLE_HSTS (deployments terminate TLS first).
  */
 export const securityHeaders: RequestHandler = (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -25,6 +27,13 @@ export const securityHeaders: RequestHandler = (req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  );
+  if (process.env.ENABLE_HSTS === 'true') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   if (req.path.startsWith(`/${API_PREFIX}/`)) {
     res.setHeader('Cache-Control', 'no-store');
   }

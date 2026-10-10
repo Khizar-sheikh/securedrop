@@ -11,10 +11,15 @@ import { RequestContext } from '../../common/request-context';
 import { fail } from '../../common/api-response';
 import { ERROR_CODES } from '../../common/error-codes';
 import { isAllowedMime, normalizeMime, sanitizeFilename, sniffUpload } from '../../security/upload-policy';
+import { checkArchiveExpansion } from '../../security/archive-policy';
 import { AppConfig } from '../../config/configuration';
 import { APP_CONFIG } from '../../config/tokens';
+import { RedisService } from '../../database/redis.service';
 import { toPublicFile } from './file.presenter';
 import { ListFilesQuery } from './dto/list-files.query';
+
+/** Safety TTL for the per-user upload slot key (crash recovery). */
+const UPLOAD_SLOT_TTL_SECONDS = 300;
 
 const sha256File = async (filePath: string): Promise<string> => {
   const hash = createHash('sha256');
@@ -26,16 +31,21 @@ const sha256File = async (filePath: string): Promise<string> => {
 export class FilesService {
   private readonly logger = new Logger(FilesService.name);
   private readonly maxBytes: number;
+  private readonly maxUncompressedBytes: number;
+  private readonly maxConcurrentPerUser: number;
   private readonly allowedMime: readonly string[];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly redis: RedisService,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
     this.maxBytes = config.upload.maxBytes;
     this.allowedMime = config.upload.allowedMime;
+    this.maxUncompressedBytes = config.upload.maxUncompressedBytes;
+    this.maxConcurrentPerUser = config.upload.maxConcurrentPerUser;
   }
 
   async list(ownerId: string, query: ListFilesQuery) {
@@ -104,6 +114,24 @@ export class FilesService {
       throw new HttpException(fail(ERROR_CODES.VALIDATION_FAILED), 400);
     }
 
+    // Per-user concurrency slot: bounds simultaneous storage writes per account.
+    const slotKey = `upload:active:${ownerId}`;
+    const active = await this.redis.incr(slotKey, UPLOAD_SLOT_TTL_SECONDS);
+    if (active > this.maxConcurrentPerUser) {
+      await this.redis.decr(slotKey);
+      throw new HttpException(fail(ERROR_CODES.RATE_LIMITED), 429);
+    }
+
+    try {
+      return await this.performUpload(ownerId, file, context);
+    } finally {
+      await this.redis.decr(slotKey).catch((error: Error) =>
+        this.logger.warn(`Could not release upload slot for ${ownerId}: ${error.message}`),
+      );
+    }
+  }
+
+  private async performUpload(ownerId: string, file: Express.Multer.File, context: RequestContext) {
     if (!Number.isFinite(file.size) || file.size <= 0 || file.size > this.maxBytes) {
       throw new HttpException(fail(ERROR_CODES.FILE_TOO_LARGE), 413);
     }
@@ -121,6 +149,12 @@ export class FilesService {
     const sniff = await sniffUpload(file.path, mimeType);
     if (!sniff.ok) {
       throw new HttpException(fail(ERROR_CODES.FILE_TYPE_NOT_ALLOWED), 415);
+    }
+
+    const archive = await checkArchiveExpansion(file.path, mimeType, this.maxUncompressedBytes);
+    if (!archive.ok) {
+      this.logger.warn(`Archive rejected for owner ${ownerId}: ${archive.reason ?? 'expansion limit'}`);
+      throw new HttpException(fail(ERROR_CODES.FILE_TOO_LARGE), 413);
     }
 
     try {

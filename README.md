@@ -259,14 +259,15 @@ App (`app/.env`): `EXPO_PUBLIC_API_URL` — backend base URL for the device.
 - Global rate limit: 600 req/min.
 - Login lockout: 10 failures / 15 min per email — counted even for *non-existent* accounts, so it can't be used to enumerate users.
 - Share-password lockout: 5 failures / 15 min per share+IP (`429 RATE_LIMITED`), cleared on success and audited.
-- Upload policy: size cap, MIME allowlist, filename normalization, path traversal stripped, **content sniffing** (image magic-byte checks; HTML/SVG markup rejected in text uploads).
-- Security headers on every API response: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`; `Cache-Control: no-store` on all API responses. Website adds the same set plus `Cross-Origin-Opener-Policy`.
+- Upload policy: size cap, MIME allowlist, filename normalization, path traversal stripped, **content sniffing** (image magic-byte checks; HTML/SVG markup rejected in text uploads), **archive expansion checks** (zip/tar declared uncompressed size capped at `UPLOAD_MAX_UNCOMPRESSED_BYTES`), **per-user concurrency cap** (`UPLOAD_MAX_CONCURRENT` slots).
+- Security headers on every API response: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`, **deny-all CSP**; `Cache-Control: no-store` on all API responses. Website adds the same set plus `Cross-Origin-Opener-Policy` and a scoped production CSP.
+- **HSTS** behind `ENABLE_HSTS=true` (API + website).
 - Response logging **redacts secrets** (`redactSecrets`).
 
 **Production notes**
-- Terminate TLS in front of API + website (cookies are `Secure` in production).
+- Terminate TLS in front of API + website (cookies are `Secure` in production), then set `ENABLE_HSTS=true`.
 - Behind a reverse proxy, configure Express trust proxy so lockout/rate-limit keys use the real client IP.
-- Keep `CORS_ORIGINS` limited to the real website origin(s). CSP and HSTS are deferred on purpose (see `docs/security-audit.md`).
+- Keep `CORS_ORIGINS` limited to the real website origin(s). Website CSP keeps `'unsafe-inline'` for scripts because the Next App Router bootstrap requires inline scripts (see `docs/security-audit.md`).
 
 **Share lifecycle (enforced server-side on every request)**
 `active → expired (timer) / consumed (one-time, atomic) / revoked / access-limit-reached` — checked *before* recipient-session state, so revoking a link kills open sessions too. Password-protected shares return `SHARE_PASSWORD_REQUIRED` until unlocked; `allowDownload: false` still allows governed viewing but blocks byte release.
@@ -274,7 +275,7 @@ App (`app/.env`): `EXPO_PUBLIC_API_URL` — backend base URL for the device.
 **Audit**
 Every action writes an `AuditEvent` (actor, action, share/file/note id, IP, user agent, reason). Hourly cleanup removes expired sessions and prunes audit rows past `AUDIT_RETENTION_DAYS`.
 
-**Verified:** 163 backend tests across 27 suites (auth, uploads incl. content sniffing, shares, one-time/expiry/revocation, recipient sessions, notes, note-shares, cleanup, security headers, share-password lockout), plus `tsc --noEmit` and ESLint on both workspaces. Security review: `docs/security-audit.md`.
+**Verified:** 177 backend tests across 29 suites (auth, uploads incl. content sniffing + archive expansion + concurrency cap, shares, one-time/expiry/revocation, recipient sessions, notes, note-shares, cleanup, security headers, share-password lockout), plus `tsc --noEmit` and ESLint on both workspaces. Security review: `docs/security-audit.md`.
 
 ---
 
