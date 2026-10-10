@@ -1,0 +1,93 @@
+/*
+ * SecureDrop design tokens.
+ * Canonical source: design/tokens.json (mirrors app/src/theme/tokens.ts).
+ * Values here must never drift from that file.
+ */
+
+:root {
+  --sd-background: #f7f8fa;
+  --sd-surface: #ffffff;
+  --sd-surface-variant: #eef1f5;
+  --sd-border: #dde2ea;
+  --sd-text: #0e1420;
+  --sd-text-muted: #5c6675;
+  --sd-brand: #2c5ce6;
+  --sd-brand-contrast: #ffffff;
+  --sd-success: #12855f;
+  --sd-warning: #9a6700;
+  --sd-danger: #c62828;
+  --sd-danger-surface: #fdecec;
+
+  --sd-radius-sm: 6px;
+  --sd-radius-md: 10px;
+  --sd-radius-lg: 12px;
+  --sd-radius-xl: 16px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sd-background: #0b0f16;
+    --sd-surface: #141a24;
+    --sd-surface-variant: #1c2431;
+    --sd-border: #27303e;
+    --sd-text: #e9edf5;
+    --sd-text-muted: #97a2b3;
+    --sd-brand: #5b85ff;
+    --sd-brand-contrast: #08111f;
+    --sd-success: #39c79a;
+    --sd-warning: #e0a73b;
+    --sd-danger: #ff6b6b;
+    --sd-danger-surface: #2a1717;
+
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-background: var(--sd-background);
+  --color-surface: var(--sd-surface);
+  --color-surface-variant: var(--sd-surface-variant);
+  --color-border: var(--sd-border);
+  --color-text: var(--sd-text);
+  --color-muted: var(--sd-text-muted);
+  --color-brand: var(--sd-brand);
+  --color-brand-contrast: var(--sd-brand-contrast);
+  --color-success: var(--sd-success);
+  --color-warning: var(--sd-warning);
+  --color-danger: var(--sd-danger);
+  --color-danger-surface: var(--sd-danger-surface);
+
+  --radius-sm: var(--sd-radius-sm);
+  --radius-md: var(--sd-radius-md);
+  --radius-lg: var(--sd-radius-lg);
+  --radius-xl: var(--sd-radius-xl);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--sd-background);
+  color: var(--sd-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible, consistent focus ring for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--sd-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

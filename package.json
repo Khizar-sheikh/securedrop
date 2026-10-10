@@ -2,10 +2,11 @@
   "name": "securedrop",
   "version": "0.1.0",
   "private": true,
-  "description": "SecureDrop — secure mobile file sharing",
+  "description": "SecureDrop \u2014 secure mobile file sharing",
   "workspaces": [
     "backend",
-    "app"
+    "app",
+    "web"
   ],
   "scripts": {
     "backend": "npm run start:dev --workspace backend",
@@ -15,7 +16,9 @@
     "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace app",
     "infra:check": "node backend/scripts/check-infra.js",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "web": "npm run start --workspace web",
+    "web:build": "npm run build --workspace web"
   },
   "engines": {
     "node": ">=20"
