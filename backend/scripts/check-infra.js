@@ -16,9 +16,23 @@ const loadEnv = () => {
   }
 };
 
+/**
+ * Docker publishes on 127.0.0.1 (IPv4) only, but Node may resolve
+ * `localhost` to ::1 first and get ECONNREFUSED. Force the IPv4 loopback.
+ */
+const preferIpv4 = (value) => {
+  try {
+    const url = new URL(value);
+    if (url.hostname === 'localhost' || url.hostname === '::1') url.hostname = '127.0.0.1';
+    return url.toString();
+  } catch {
+    return value;
+  }
+};
+
 const checkRedis = async () => {
   const Redis = require('ioredis');
-  const redis = new Redis(process.env.REDIS_URL, {
+  const redis = new Redis(preferIpv4(process.env.REDIS_URL), {
     connectTimeout: 5000,
     maxRetriesPerRequest: 1,
     lazyConnect: true,
@@ -35,7 +49,7 @@ const checkRedis = async () => {
 const checkStorage = async () => {
   const { S3Client, HeadBucketCommand } = require('@aws-sdk/client-s3');
   const client = new S3Client({
-    endpoint: process.env.STORAGE_ENDPOINT,
+    endpoint: preferIpv4(process.env.STORAGE_ENDPOINT),
     region: process.env.STORAGE_REGION,
     forcePathStyle: process.env.STORAGE_FORCE_PATH_STYLE !== 'false',
     credentials: {
