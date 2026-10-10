@@ -163,4 +163,41 @@ describe('POST /files (upload)', () => {
     expect(first.body.data.id).not.toBe(second.body.data.id);
     expect(randomUUID()).not.toBe(first.body.data.id);
   });
+
+  it('rejects markup smuggled in as text/plain', async () => {
+    const res = await request(app.getHttpServer())
+      .post(apiUrl('files'))
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('<!DOCTYPE html><script>alert(1)</script>'), {
+        filename: 'payload.txt',
+        contentType: 'text/plain',
+      })
+      .expect(415);
+    expect(res.body.error.code).toBe('FILE_TYPE_NOT_ALLOWED');
+  });
+
+  it('rejects an image whose bytes do not match the declared type', async () => {
+    const res = await request(app.getHttpServer())
+      .post(apiUrl('files'))
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('definitely not a png'), {
+        filename: 'fake.png',
+        contentType: 'image/png',
+      })
+      .expect(415);
+    expect(res.body.error.code).toBe('FILE_TYPE_NOT_ALLOWED');
+  });
+
+  it('accepts an image whose magic bytes match the declared type', async () => {
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('truncated-but-signature-correct'),
+    ]);
+    const res = await request(app.getHttpServer())
+      .post(apiUrl('files'))
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', png, { filename: 'pixel.png', contentType: 'image/png' })
+      .expect(201);
+    expect(res.body.data.mimeType).toBe('image/png');
+  });
 });

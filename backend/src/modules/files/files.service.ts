@@ -10,7 +10,7 @@ import { AuditService } from '../audit/audit.service';
 import { RequestContext } from '../../common/request-context';
 import { fail } from '../../common/api-response';
 import { ERROR_CODES } from '../../common/error-codes';
-import { isAllowedMime, normalizeMime, sanitizeFilename } from '../../security/upload-policy';
+import { isAllowedMime, normalizeMime, sanitizeFilename, sniffUpload } from '../../security/upload-policy';
 import { AppConfig } from '../../config/configuration';
 import { APP_CONFIG } from '../../config/tokens';
 import { toPublicFile } from './file.presenter';
@@ -115,6 +115,11 @@ export class FilesService {
 
     const mimeType = normalizeMime(file.mimetype ?? '');
     if (!isAllowedMime(mimeType, this.allowedMime)) {
+      throw new HttpException(fail(ERROR_CODES.FILE_TYPE_NOT_ALLOWED), 415);
+    }
+
+    const sniff = await sniffUpload(file.path, mimeType);
+    if (!sniff.ok) {
       throw new HttpException(fail(ERROR_CODES.FILE_TYPE_NOT_ALLOWED), 415);
     }
 

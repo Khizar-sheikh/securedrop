@@ -2,6 +2,7 @@
  * Upload policy: what may enter private storage, and how a client-supplied
  * filename is normalized before it is ever stored or displayed.
  */
+import { open } from 'node:fs/promises';
 
 export const DEFAULT_ALLOWED_MIME = [
   // documents
@@ -88,3 +89,68 @@ export const isAllowedMime = (mimeType: string, allowed: readonly string[]): boo
 };
 
 export const normalizeMime = (mimeType: string): string => mimeType.toLowerCase().split(';')[0].trim();
+
+/**
+ * Content sniffing: the client-declared MIME type is only trusted after the
+ * file's first bytes agree with it. This is a cheap sanity check, not a full
+ * parser — downloads are additionally forced to application/octet-stream
+ * attachment, so browsers never render stored content inline.
+ */
+const IMAGE_SIGNATURES: Record<string, (bytes: Buffer) => boolean> = {
+  'image/png': (b) =>
+    b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/jpeg': (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/gif': (b) => {
+    const magic = b.subarray(0, 6).toString('ascii');
+    return magic === 'GIF87a' || magic === 'GIF89a';
+  },
+  'image/webp': (b) =>
+    b.length >= 12 && b.subarray(0, 4).toString('ascii') === 'RIFF' && b.subarray(8, 12).toString('ascii') === 'WEBP',
+};
+
+const TEXT_LIKE_MIME = new Set(['text/plain', 'text/csv', 'text/markdown', 'application/json']);
+
+const MARKUP_MARKERS = [
+  /<\s*!doctype\s+html/i,
+  /<\s*html[\s>]/i,
+  /<\s*head[\s>]/i,
+  /<\s*body[\s>]/i,
+  /<\s*svg[\s>]/i,
+  /<\s*iframe[\s>]/i,
+  /<\s*script[\s>]/i,
+];
+
+export interface SniffResult {
+  ok: boolean;
+  reason?: string;
+}
+
+const readFileHead = async (filePath: string, bytes: number): Promise<Buffer> => {
+  const handle = await open(filePath, 'r');
+  try {
+    const buffer = Buffer.alloc(bytes);
+    const { bytesRead } = await handle.read(buffer, 0, bytes, 0);
+    return buffer.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+};
+
+/** Rejects spoofed image types and markup/script payloads under text types. */
+export const sniffUpload = async (filePath: string, declaredMime: string): Promise<SniffResult> => {
+  const head = await readFileHead(filePath, 4096);
+  const signature = IMAGE_SIGNATURES[declaredMime];
+  if (signature && !signature(head)) {
+    return { ok: false, reason: 'File content does not match the declared image type.' };
+  }
+  if (TEXT_LIKE_MIME.has(declaredMime) && head.length > 0) {
+    const text = head.toString('utf8');
+    if (MARKUP_MARKERS.some((marker) => marker.test(text))) {
+      return {
+        ok: false,
+        reason: 'File contains HTML/SVG markup, which is not allowed in text uploads.',
+      };
+    }
+  }
+  return { ok: true };
+};

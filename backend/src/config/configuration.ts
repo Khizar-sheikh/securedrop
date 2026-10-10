@@ -155,6 +155,10 @@ export interface AppConfig {
     maxFailedAttempts: number;
     failWindowSeconds: number;
   };
+  sharePassword: {
+    maxFailedAttempts: number;
+    failWindowSeconds: number;
+  };
   cleanup: {
     enabled: boolean;
     intervalMs: number;
@@ -203,6 +207,10 @@ export const buildConfig = (env: NodeJS.ProcessEnv): AppConfig => ({
   auth: {
     maxFailedAttempts: toInt(env.AUTH_MAX_FAILED_ATTEMPTS, 10),
     failWindowSeconds: parseTtlToSeconds(env.AUTH_FAIL_WINDOW ?? '15m'),
+  },
+  sharePassword: {
+    maxFailedAttempts: toInt(env.SHARE_PASSWORD_MAX_FAILED_ATTEMPTS, 5),
+    failWindowSeconds: parseTtlToSeconds(env.SHARE_PASSWORD_FAIL_WINDOW ?? '15m'),
   },
   cleanup: {
     enabled: toBool(env.CLEANUP_ENABLED, true),

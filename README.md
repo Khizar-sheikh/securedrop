@@ -258,8 +258,15 @@ App (`app/.env`): `EXPO_PUBLIC_API_URL` — backend base URL for the device.
 **Abuse controls**
 - Global rate limit: 600 req/min.
 - Login lockout: 10 failures / 15 min per email — counted even for *non-existent* accounts, so it can't be used to enumerate users.
-- Upload policy: size cap, MIME allowlist, filename normalization, path traversal stripped.
+- Share-password lockout: 5 failures / 15 min per share+IP (`429 RATE_LIMITED`), cleared on success and audited.
+- Upload policy: size cap, MIME allowlist, filename normalization, path traversal stripped, **content sniffing** (image magic-byte checks; HTML/SVG markup rejected in text uploads).
+- Security headers on every API response: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `X-Permitted-Cross-Domain-Policies`; `Cache-Control: no-store` on all API responses. Website adds the same set plus `Cross-Origin-Opener-Policy`.
 - Response logging **redacts secrets** (`redactSecrets`).
+
+**Production notes**
+- Terminate TLS in front of API + website (cookies are `Secure` in production).
+- Behind a reverse proxy, configure Express trust proxy so lockout/rate-limit keys use the real client IP.
+- Keep `CORS_ORIGINS` limited to the real website origin(s). CSP and HSTS are deferred on purpose (see `docs/security-audit.md`).
 
 **Share lifecycle (enforced server-side on every request)**
 `active → expired (timer) / consumed (one-time, atomic) / revoked / access-limit-reached` — checked *before* recipient-session state, so revoking a link kills open sessions too. Password-protected shares return `SHARE_PASSWORD_REQUIRED` until unlocked; `allowDownload: false` still allows governed viewing but blocks byte release.
@@ -267,7 +274,7 @@ App (`app/.env`): `EXPO_PUBLIC_API_URL` — backend base URL for the device.
 **Audit**
 Every action writes an `AuditEvent` (actor, action, share/file/note id, IP, user agent, reason). Hourly cleanup removes expired sessions and prunes audit rows past `AUDIT_RETENTION_DAYS`.
 
-**Verified:** 135 backend tests across 22 suites (auth, uploads, shares, one-time/expiry/revocation, recipient sessions, notes, note-shares, cleanup), plus `tsc --noEmit` and ESLint on both workspaces.
+**Verified:** 163 backend tests across 27 suites (auth, uploads incl. content sniffing, shares, one-time/expiry/revocation, recipient sessions, notes, note-shares, cleanup, security headers, share-password lockout), plus `tsc --noEmit` and ESLint on both workspaces. Security review: `docs/security-audit.md`.
 
 ---
 
@@ -318,6 +325,7 @@ securedrop/
 ## Documentation
 
 - `docs/local-development.md` — detailed local setup
+- `docs/security-audit.md` — threat review of API + website: findings, fixes, accepted risks, deployment checklist
 - `SecureDrop_Application_Plan.md` — the full product spec: 15 phases, UX rules, security requirements, Definition of Done (all in-scope items checked off)
 
 ## Roadmap (deferred on purpose)

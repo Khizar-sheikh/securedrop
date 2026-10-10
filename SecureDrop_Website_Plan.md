@@ -538,6 +538,13 @@ Record of verified work, newest context last. Checkboxes above are only marked a
 - Website pages: landing (`/`), `/login`, `/signup`, `/app` (files, upload with progress, delete, share creation), `/app/shares`, `/share/[token]` (password gate, session reuse, blob download), `/admin` (overview, users, shares, audit), `/privacy`, `/terms`.
 - Verified: web lint + typecheck + production build clean; curl E2E (register, login, cookie session, refresh rotation, upload, share, open, download, admin revoke, SHARE_REVOKED) against the live backend; em/en-dash scan of all website copy clean.
 
+### Security hardening pass (2026-10-10)
+
+- Full threat review recorded in `docs/security-audit.md` (checkboxes + accepted risks + deployment checklist).
+- Backend fixes: share-password brute-force lockout (Redis, 5 fails / 15 min per share+IP, audited, `429 RATE_LIMITED`); global security headers + `Cache-Control: no-store` on all API responses; upload content sniffing (image magic bytes, HTML/SVG markup rejected in text files, `415`); unknown-share-token timing equalization (dummy scrypt on 404 path).
+- Website fixes: hardening headers on every route (nosniff, DENY, no-referrer, COOP, Permissions-Policy); production refresh cookie upgraded to `__Host-sd_refresh` (Path=/, Secure) with dual-name reads and path-aware clearing.
+- Verified: 2 new backend suites (`security-headers`, `share-password-lockout`) + sniff cases in `files-upload` — full suite now 27 suites / 163 tests green; lint/typecheck/build clean on both workspaces; headers confirmed live on `:3000` and `:3001`.
+
 ### Still open (manual verification, intentionally not checked off)
 
 - The 25 unchecked boxes are human checks: side-by-side visual comparison with the app, viewport testing (mobile/tablet/desktop), console/network inspection, keyboard-navigation pass, and clicking through the primary flows in a real browser.

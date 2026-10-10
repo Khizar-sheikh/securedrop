@@ -1,9 +1,14 @@
 import { cookies } from 'next/headers';
 
 export const REFRESH_COOKIE = 'sd_refresh';
+/** Production uses the __Host- prefix: Secure, Path=/, no Domain attribute. */
+export const REFRESH_COOKIE_HOST = '__Host-sd_refresh';
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 
 const isProduction = process.env.NODE_ENV === 'production';
+
+const cookieName = (): string => (isProduction ? REFRESH_COOKIE_HOST : REFRESH_COOKIE);
+const cookiePath = (): string => (isProduction ? '/' : '/api/auth');
 
 export const trustedSiteOrigin = (): string =>
   process.env.SITE_ORIGIN ?? 'http://localhost:3001';
@@ -22,21 +27,27 @@ export async function setRefreshCookie(
     Number.isFinite(refreshExpiresIn) && refreshExpiresIn > 0
       ? Math.min(Math.floor(refreshExpiresIn), THIRTY_DAYS_SECONDS)
       : THIRTY_DAYS_SECONDS;
-  store.set(REFRESH_COOKIE, refreshToken, {
+  store.set(cookieName(), refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     secure: isProduction,
-    path: '/api/auth',
+    path: cookiePath(),
     maxAge,
   });
 }
 
 export async function readRefreshCookie(): Promise<string | null> {
   const store = await cookies();
-  return store.get(REFRESH_COOKIE)?.value ?? null;
+  // Accept both names so sessions survive an environment-name switch.
+  return store.get(REFRESH_COOKIE_HOST)?.value ?? store.get(REFRESH_COOKIE)?.value ?? null;
 }
 
 export async function clearRefreshCookie(): Promise<void> {
   const store = await cookies();
-  store.delete(REFRESH_COOKIE);
+  // Expire both names with the path each one was set with, so nothing lingers
+  // after an environment switch.
+  const options = (path: string) =>
+    ({ httpOnly: true, sameSite: 'lax', secure: isProduction, path, maxAge: 0 }) as const;
+  store.set(REFRESH_COOKIE_HOST, '', options('/'));
+  store.set(REFRESH_COOKIE, '', options('/api/auth'));
 }

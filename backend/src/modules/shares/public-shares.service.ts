@@ -8,12 +8,13 @@ import { AuditService } from '../audit/audit.service';
 import { RequestContext } from '../../common/request-context';
 import { fail } from '../../common/api-response';
 import { ERROR_CODES } from '../../common/error-codes';
-import { verifyPassword } from '../../security/password';
+import { verifyPassword, hashPassword } from '../../security/password';
 import { generateToken, hashToken } from '../../security/tokens';
 import { AppConfig } from '../../config/configuration';
 import { APP_CONFIG } from '../../config/tokens';
 import { OpenShareDto } from './dto/open-share.dto';
 import { DownloadShareDto } from './dto/download-share.dto';
+import { SharePasswordRateLimiterService } from './share-password-rate-limiter.service';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,120}$/;
 
@@ -61,11 +62,14 @@ export interface DownloadResult {
 @Injectable()
 export class PublicSharesService {
   private readonly recipientTtlSeconds: number;
+  /** Lazily generated hash used to equalize timing on unknown tokens. */
+  private timingEqualizerHash?: Promise<string>;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly storage: StorageService,
+    private readonly passwordLimiter: SharePasswordRateLimiterService,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
     this.recipientTtlSeconds = config.tokens.recipientTtlSeconds;
@@ -88,6 +92,9 @@ export class PublicSharesService {
 
     const target = share ? this.targetOf(share) : null;
     if (!share || !target) {
+      // Equalize response time with the password-verify path so share-token
+      // existence cannot be inferred from latency.
+      await this.equalizeTiming(dto.password);
       throw new HttpException(fail(ERROR_CODES.SHARE_INVALID), 404);
     }
 
@@ -109,10 +116,18 @@ export class PublicSharesService {
       if (!dto.password) {
         throw new HttpException(fail(ERROR_CODES.SHARE_PASSWORD_REQUIRED), 403);
       }
+      const clientIp = context.ip ?? 'unknown';
+      if (await this.passwordLimiter.isLocked(share.id, clientIp)) {
+        await this.denied('password_rate_limited', share, context);
+        throw new HttpException(fail(ERROR_CODES.RATE_LIMITED), 429);
+      }
       const valid = await verifyPassword(dto.password, share.passwordHash);
       if (!valid) {
+        await this.passwordLimiter.recordFailure(share.id, clientIp);
+        await this.denied('password_invalid', share, context);
         throw new HttpException(fail(ERROR_CODES.SHARE_PASSWORD_INVALID), 403);
       }
+      await this.passwordLimiter.clearFailures(share.id, clientIp);
     }
 
     const claim = await this.claimAccess(share.id, share.maxAccesses, share.oneTime);
@@ -310,6 +325,17 @@ export class PublicSharesService {
       userAgent: context.userAgent,
       metadata: { reason },
     });
+  }
+
+  /**
+   * Runs one scrypt verification against a process-lifetime dummy hash when a
+   * password was supplied, so unknown-token 404s cost the same as the
+   * password-check path and cannot be distinguished by timing.
+   */
+  private async equalizeTiming(password: string | undefined): Promise<void> {
+    if (!password) return;
+    this.timingEqualizerHash ??= hashPassword(`sd-timing-equalizer-${Date.now()}`);
+    await verifyPassword(password, await this.timingEqualizerHash);
   }
 
   /** Phase 9: authorized, streamed download — never a storage URL. */
