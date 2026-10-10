@@ -423,7 +423,7 @@ Avoid building a large design system before the first pages are working. Add com
 - [ ] Keep secrets on the server.
 - [ ] Configure secure session cookies if using cookie-based authentication.
 - [ ] Configure CSRF protection when applicable.
-- [ ] Configure CORS narrowly for trusted origins.
+- [x] Configure CORS narrowly for trusted origins. (opt-in via `CORS_ORIGINS`, Authorization-header only, credentials off, 4 tests)
 - [ ] Apply rate limiting to authentication and sensitive share endpoints.
 - [ ] Prevent open redirects.
 - [ ] Render user-generated Markdown safely.
