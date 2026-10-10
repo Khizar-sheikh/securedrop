@@ -15,11 +15,19 @@ enum AccountStatus {
   DISABLED
 }
 
+/// Explicit role for website/admin authorization. Authorization always checks
+/// the database, never the token, so demotions take effect immediately.
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique // stored lowercase
   passwordHash String
   status       AccountStatus @default(ACTIVE)
+  role         UserRole      @default(USER)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -162,6 +170,9 @@ enum AuditEventType {
   SESSION_CHANGED
   NOTE_CREATED
   NOTE_DELETED
+  USER_SUSPENDED
+  USER_REACTIVATED
+  SHARE_REVOKED_BY_ADMIN
 }
 
 /// Append-only security trail.

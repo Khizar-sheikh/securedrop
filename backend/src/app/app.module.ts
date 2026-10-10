@@ -11,6 +11,7 @@ import { AuthModule } from '../modules/auth/auth.module';
 import { FilesModule } from '../modules/files/files.module';
 import { SharesModule } from '../modules/shares/shares.module';
 import { NotesModule } from '../modules/notes/notes.module';
+import { AdminModule } from '../modules/admin/admin.module';
 import { CleanupModule } from '../modules/cleanup/cleanup.module';
 import { AppThrottlerGuard } from '../common/app-throttler.guard';
 import { AppConfig } from '../config/configuration';
@@ -34,6 +35,7 @@ import { APP_CONFIG } from '../config/tokens';
     FilesModule,
     SharesModule,
     NotesModule,
+    AdminModule,
     CleanupModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],

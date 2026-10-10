@@ -322,34 +322,34 @@ Build a separate admin area for operating and monitoring SecureDrop. This is not
 
 - [ ] List users with pagination and safe search.
 - [ ] Show the minimum account details needed for administration.
-- [ ] Support account suspension or reactivation only if the backend implements it and the action is authorized.
+- [x] Support account suspension or reactivation only if the backend implements it and the action is authorized. (`PATCH /admin/users/:id/status`, ADMIN-only, self-suspend blocked, audited; login/refresh/token checks all enforce ACTIVE)
 - [ ] Require confirmation for high-impact actions.
-- [ ] Never allow an admin to view or change a user's password.
-- [ ] Restrict administrator role changes to a carefully authorized backend workflow.
+- [x] Never allow an admin to view or change a user's password. (no such endpoint exists; passwordHash never selected into admin responses; payload test asserts absence)
+- [x] Restrict administrator role changes to a carefully authorized backend workflow. (no API for role changes; local-only `npm run admin:promote -- <email> [ADMIN|USER]` script)
 
 ### Share and file oversight
 
-- [ ] Provide a limited view of share metadata, status, expiry, and relevant access events.
-- [ ] Support revoking abusive or policy-violating shares only if this capability is explicitly implemented and audited.
-- [ ] Do not expose private file contents or permanent object-storage URLs by default.
-- [ ] Record who performed sensitive admin actions, what action was taken, and when.
+- [x] Provide a limited view of share metadata, status, expiry, and relevant access events. (`GET /admin/shares` — computed status, owner email, counts; website UI consumes it next)
+- [x] Support revoking abusive or policy-violating shares only if this capability is explicitly implemented and audited. (`DELETE /admin/shares/:id` idempotent, revokes recipient sessions, `SHARE_REVOKED_BY_ADMIN` audit event)
+- [x] Do not expose private file contents or permanent object-storage URLs by default. (admin share list has no tokenHash/storageKey/content; test asserts raw token absent from payload)
+- [x] Record who performed sensitive admin actions, what action was taken, and when. (`USER_SUSPENDED`, `USER_REACTIVATED`, `SHARE_REVOKED_BY_ADMIN` events carry actorUserId, ip, target metadata)
 
 ### Audit and security events
 
 - [ ] Provide a searchable, paginated audit log for relevant authentication, share, access, and administrator events.
-- [ ] Apply server-side authorization and filtering to every query.
+- [x] Apply server-side authorization and filtering to every query. (all admin list endpoints role-guarded; email/type/status filters and pagination resolved in Prisma, never client-side)
 - [ ] Avoid displaying passwords, session tokens, share secrets, or other sensitive values in logs.
 - [ ] Make audit records tamper-resistant where the backend architecture supports it.
 - [ ] Do not add destructive bulk actions unless there is a clear requirement, confirmation, and audit trail.
 
 ### Admin security requirements
 
-- [ ] Enforce admin role checks on the server for every admin page data request and mutation.
-- [ ] Deny access by default and test ordinary users attempting to call admin APIs directly.
+- [x] Enforce admin role checks on the server for every admin page data request and mutation. (`@UseGuards(AccessTokenGuard, AdminGuard)` on the whole `/admin` controller; role read from DB each request)
+- [x] Deny access by default and test ordinary users attempting to call admin APIs directly. (`admin-authz.spec.ts`: 401 unauthenticated, 403 ordinary user on all 6 routes, 200 admin reads)
 - [ ] Use stronger authentication such as MFA if supported by the existing authentication system. Do not fake an MFA flow in the frontend.
-- [ ] Rate-limit sensitive admin operations and log security-relevant actions.
-- [ ] Keep admin sessions and cookies aligned with the application's secure session design.
-- [ ] Never expose service secrets or unrestricted database controls in the browser.
+- [x] Rate-limit sensitive admin operations and log security-relevant actions. (global 600 req/min throttler covers admin routes; every admin mutation writes an audit event)
+- [x] Keep admin sessions and cookies aligned with the application's secure session design. (admins use the identical JWT access + rotating refresh flow; role is DB-checked per request, never trusted from the token)
+- [x] Never expose service secrets or unrestricted database controls in the browser. (admin API is fixed, metadata-only endpoints; no arbitrary query/DB control exists)
 
 Do not build a hidden backdoor or universal access mechanism. Administrator capabilities must be explicit, least-privilege, authenticated, authorized, and auditable.
 
@@ -466,8 +466,8 @@ Avoid building a large design system before the first pages are working. Add com
 ### Administrator dashboard
 
 - [ ] Ordinary users cannot open admin pages or access admin APIs.
-- [ ] Admin endpoints enforce role checks on the backend.
-- [ ] User and share lists are paginated and do not leak sensitive data.
+- [x] Admin endpoints enforce role checks on the backend. (AdminGuard on every `/admin` route; see `admin-authz.spec.ts`)
+- [x] User and share lists are paginated and do not leak sensitive data. (page/pageSize/total/hasMore; email search server-side; no passwordHash/tokenHash in any admin response)
 - [ ] Sensitive admin actions require appropriate confirmation and create audit events.
 - [ ] Audit logs do not contain passwords, tokens, or private file contents.
 

@@ -97,6 +97,7 @@ Cloud links are broken for sensitive data. A WeTransfer or Drive link, once copi
 | Layer | Technology |
 |---|---|
 | Mobile app | Expo SDK 57, React Native 0.86, TypeScript, Expo Router, `@expo/vector-icons`, `react-native-markdown-display` |
+| Website | Next.js 16 (App Router, Turbopack), React 19.2, Tailwind 4 — landing, user dashboard, admin (`web/`) |
 | Backend | NestJS 12, TypeScript 5.9 (strict), class-validator, `@nestjs/throttler`, `@nestjs/jwt`, multer |
 | Data | PostgreSQL 17 + Prisma 6.19 (migrations), Redis 7 (limits/sessions), MinIO (S3 API via `@aws-sdk/client-s3`) |
 | Infra | Docker Compose (3 containers + one-shot bucket init), npm workspaces |
@@ -189,6 +190,18 @@ npm run app                      # = expo start
 4. Revoke from **Shares** → the link is dead immediately.
 5. **Notes** tab → write Markdown → attach a file → share the note.
 
+### 8. Website + admin access
+
+1. `npm run web` → Next.js dev server on `http://localhost:3001` (backend must be running).
+2. Admin access is a first-class backend concern: every user has a `role` (`USER`/`ADMIN`), and all `/api/v1/admin/*` routes require `ADMIN`, checked against the database on every request.
+3. Promote yourself after registering:
+
+```bash
+npm run admin:promote --workspace backend -- you@example.com
+```
+
+4. Sign in on the website and open `/admin` (metrics, users, shares, audit trail).
+
 ---
 
 ## Commands
@@ -200,6 +213,9 @@ npm run app                      # = expo start
 | `npm run infra:check` | Ping Postgres, Redis, MinIO |
 | `npm run backend` | Backend in watch mode (:3000) |
 | `npm run app` | Expo dev server |
+| `npm run web` | Website in watch mode (:3001) |
+| `npm run web:build` | Production website build |
+| `npm run admin:promote --workspace backend -- <email>` | Grant (or revoke) the ADMIN role |
 | `npm run backend:test` | Backend test suite (Jest) |
 | `npm run typecheck` | TS strict check for backend **and** app |
 | `npx expo lint` | Mobile app lint (in `app/`) |
@@ -224,6 +240,7 @@ Root `.env` (see `.env.example` for the full list):
 | `AUTH_MAX_FAILED_ATTEMPTS` / `AUTH_FAIL_WINDOW` | `10` / `15m` per email |
 | `CLEANUP_ENABLED` / `CLEANUP_INTERVAL_MS` | hourly session/audit housekeeping |
 | `AUDIT_RETENTION_DAYS` | `180` |
+| `CORS_ORIGINS` | comma-separated trusted browser origins (e.g. `http://localhost:3001`); CORS stays off when empty |
 
 App (`app/.env`): `EXPO_PUBLIC_API_URL` — backend base URL for the device.
 
@@ -266,6 +283,7 @@ All under `/api/v1`, envelope `{success, data}` / `{success:false, error:{code,m
 | Recipient | `POST /public/shares/open` (inspect / open / restore via `sessionSecret`), `POST /public/shares/download` |
 | Notes | `GET/POST /notes`, `GET/PATCH/DELETE /notes/:id`, `POST /notes/:id/files`, `DELETE /notes/:id/files/:fileId` |
 | Activity | `GET /audit` |
+| Admin | `GET /admin/metrics`, `GET /admin/users`, `PATCH /admin/users/:id/status`, `GET /admin/shares`, `DELETE /admin/shares/:id`, `GET /admin/audit` (ADMIN only) |
 | System | `GET /health` |
 
 ---
@@ -277,10 +295,10 @@ securedrop/
 ├── backend/                 NestJS API
 │   ├── prisma/              schema + migrations
 │   ├── src/
-│   │   ├── modules/         auth, files, shares, notes, activity, cleanup, health
+│   │   ├── modules/         auth, files, shares, notes, audit, admin, cleanup, health
 │   │   ├── security/        scrypt, token hashing, upload policy
 │   │   └── app/             bootstrap, global guards, logging
-│   └── tests/               22 Jest suites (135 tests)
+│   └── tests/               25 Jest suites (153 tests)
 ├── app/                     Expo mobile app
 │   └── src/
 │       ├── app/             routes (tabs, auth, file/, share/, note/, s/)
@@ -288,6 +306,8 @@ securedrop/
 │       ├── components/      Button, TextField, MarkdownView…
 │       ├── services/        typed API clients
 │       └── theme/           tokens: light/dark palettes, spacing, typography
+├── web/                     Next.js website (landing, dashboard, admin)
+├── design/tokens.json       canonical design tokens shared by app + website
 ├── docker-compose.yml       postgres + redis + minio (+ bucket init)
 ├── docs/local-development.md
 └── SecureDrop_Application_Plan.md   full spec (phases, DoD)
