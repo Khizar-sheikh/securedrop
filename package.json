@@ -13,11 +13,11 @@
     "backend:build": "npm run build --workspace backend",
     "backend:test": "npm run test --workspace backend",
     "app": "npm run start --workspace app",
-    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace app",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace app && npm run typecheck --workspace web",
     "infra:check": "node backend/scripts/check-infra.js",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "web": "npm run start --workspace web",
+    "web": "npm run dev --workspace web",
     "web:build": "npm run build --workspace web"
   },
   "engines": {
